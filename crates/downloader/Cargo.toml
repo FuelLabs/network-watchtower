@@ -1,0 +1,29 @@
+[package]
+name = "fuel-network-watchtower-downloader"
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+alloy = { version = "0.4.2", features = [
+    "full",
+    "rpc-types-debug",
+    "rpc-types-trace",
+    "json-rpc",
+    "rpc-client",
+    "eips",
+] }
+fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer", branch = "feat/blob_metadata" }
+futures-util = "0.3"
+hex = "0.4.3"
+reqwest = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10.8"
+tokio = { workspace = true, features = ["rt-multi-thread"] }
