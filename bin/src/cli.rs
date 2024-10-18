@@ -13,7 +13,7 @@ pub struct Opt {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]
 pub enum Fuel {
-    Run(run::Command),
+    Run(run::WatchtowerCommand),
 }
 
 fn init_environment() -> Option<PathBuf> {

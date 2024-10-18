@@ -1,4 +1,7 @@
 //! Example of subscribing and listening for specific contract events by `WebSocket` subscription.
+#![deny(clippy::cast_possible_truncation)]
+#![deny(unused_crate_dependencies)]
+#![deny(warnings)]
 
 use std::collections::HashMap;
 
@@ -32,6 +35,7 @@ use fuel_block_committer_encoding::{
         Bundle,
     },
 };
+use reqwest::Url;
 
 use sha2::{
     Digest,
@@ -62,7 +66,7 @@ fn get_block_tx_blobs(
     for tx in block.transactions.txns() {
         if tx.from == *target_contract && tx.transaction_type == Some(3) {
             if let Some(bvh) = tx.blob_versioned_hashes.as_ref() {
-                hashes.extend(bvh.into_iter().map(|h| h.to_vec()));
+                hashes.extend(bvh.iter().map(|h| h.to_vec()));
             }
         }
     }
@@ -108,25 +112,26 @@ pub struct Downloader {
     /// HTTP client for downloading blobs.
     http: reqwest::Client,
     /// API URL for the beacon.
-    beacon_url: String,
+    beacon_url: Url,
     /// Contract to monitor for new blobs.
     target_contract: Address,
     /// Current block number.
     current_block: u64,
 }
+
 impl Downloader {
-    pub fn new(config: Config) -> anyhow::Result<Self> {
-        let rpc_url = config.ethereum_rpc_url.parse()?;
+    pub fn new(config: Config) -> Self {
+        let rpc_url = config.ethereum_rpc_url;
         let provider = ProviderBuilder::new().on_http(rpc_url);
         let http = reqwest::Client::new();
-        let target_contract: Address = config.blob_contract.parse()?;
-        Ok(Self {
+        let target_contract = Address::from(*config.blob_contract);
+        Self {
             provider,
             http,
             beacon_url: config.beacon_rpc_url,
             target_contract,
             current_block: config.start_block,
-        })
+        }
     }
 
     async fn download_block(&self, number: u64) -> anyhow::Result<Option<Block>> {
@@ -154,11 +159,12 @@ impl Downloader {
         Ok(Some(self.http.get(&url).send().await?.json().await?))
     }
 
-    pub fn stream<'a>(self) -> impl Stream<Item = anyhow::Result<Vec<u8>>> + 'a {
-        let (tx, rx) = mpsc::channel(1);
+    pub fn stream(self) -> impl Stream<Item = anyhow::Result<Vec<u8>>> {
+        let (tx, rx) = mpsc::channel(1024);
+        let stream = self.stream_inner(tx.clone());
 
         tokio::spawn(async move {
-            match self.stream_inner(tx.clone()).await {
+            match stream.await {
                 Ok(_) => unreachable!("Downloader stream ended unexpectedly"),
                 Err(e) => {
                     let _ = tx.send(Err(e)).await;
@@ -175,22 +181,22 @@ impl Downloader {
     ) -> anyhow::Result<()> {
         let mut bundle_buffer_by_id: HashMap<u32, Vec<(HeaderV1, Blob)>> = HashMap::new();
         loop {
-            log::trace!("Processing block: {}", self.current_block);
+            tracing::trace!("Processing block: {}", self.current_block);
             // TODO: reuse next_block from the previous iteration to avoid an extra api call
             let Some(this_block) = self.download_block(self.current_block).await? else {
-                log::trace!("Block is not yet available, try again later.");
+                tracing::trace!("Block is not yet available, try again later.");
                 tokio::time::sleep(std::time::Duration::from_secs(12)).await;
                 continue;
             };
 
             let Some(next_block) = self.download_block(self.current_block + 1).await?
             else {
-                log::trace!("Block is not yet available, try again later.");
+                tracing::trace!("Block is not yet available, try again later.");
                 tokio::time::sleep(std::time::Duration::from_secs(12)).await;
                 continue;
             };
 
-            log::trace!("Processing block: {}", self.current_block);
+            tracing::trace!("Processing block: {}", self.current_block);
             self.current_block += 1;
 
             let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract);

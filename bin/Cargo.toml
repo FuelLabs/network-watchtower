@@ -17,14 +17,19 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 clap = { workspace = true }
 dotenvy = "0.15"
+fuel-block-syncer = { workspace = true }
 fuel-core = { workspace = true }
 fuel-core-bin = { workspace = true }
+fuel-core-services = { workspace = true }
+fuel-network-watchtower-downloader = { workspace = true }
+futures-util = { workspace = true }
 tikv-jemallocator = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
-url = { version = "2.2" }
+url = { workspace = true }
 
 [features]
 default = []

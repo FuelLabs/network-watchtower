@@ -12,13 +12,19 @@ description = "Syncer of the block from the Fuel network via GraphQL"
 
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true }
+fuel-core = { workspace = true }
 fuel-core-client = { workspace = true }
 fuel-core-client-ext = { workspace = true }
 fuel-core-compression = { workspace = true }
+fuel-core-relayer = { workspace = true }
+fuel-core-poa = { workspace = true }
+fuel-core-storage = { workspace = true }
 fuel-core-types = { workspace = true }
 futures = { workspace = true }
+humantime = "2.1.0"
 itertools = { workspace = true }
 postcard = { workspace = true }
-
-[dev-dependencies]
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
