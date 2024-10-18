@@ -2,35 +2,21 @@
 
 use alloy::{
     primitives::Address,
-    providers::{
-        Provider,
-        ProviderBuilder,
-        RootProvider,
-    },
-    rpc::types::{
-        Block,
-        BlockNumberOrTag,
-    },
+    providers::{Provider, ProviderBuilder, RootProvider},
+    rpc::types::{Block, BlockNumberOrTag},
     transports::http::Http,
 };
+use futures_util::{Stream};
 use serde::Deserialize;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 
 use fuel_block_committer_encoding::{
-    blob::{
-        self,
-        Blob,
-        Header,
-    },
-    bundle::{
-        self,
-        Bundle,
-    },
+    blob::{self, Blob, Header},
+    bundle::{self, Bundle},
 };
 
-use sha2::{
-    Digest,
-    Sha256,
-};
+use sha2::{Digest, Sha256};
 
 mod config;
 
@@ -51,7 +37,7 @@ struct BlobData {
 fn get_block_tx_blobs(
     block: &alloy::rpc::types::Block,
     target_contract: &Address,
-) -> anyhow::Result<Vec<Vec<u8>>> {
+) -> Vec<Vec<u8>> {
     let mut hashes = Vec::new();
     for tx in block.transactions.txns() {
         if tx.from == *target_contract && tx.transaction_type == Some(3) {
@@ -60,7 +46,7 @@ fn get_block_tx_blobs(
             }
         }
     }
-    Ok(hashes)
+    hashes
 }
 
 /// Returns blobs from the beacon response,
@@ -113,9 +99,6 @@ pub struct Downloader {
     target_contract: Address,
     /// Current block number.
     current_block: u64,
-    /// Cached block at `current_block + 1`.
-    /// Used to avoid fetching the same block multiple times.
-    peek_block: Option<Block>,
 }
 impl Downloader {
     pub fn new(config: Config) -> anyhow::Result<Self> {
@@ -129,35 +112,21 @@ impl Downloader {
             beacon_url: config.beacon_rpc_url,
             target_contract,
             current_block: config.start_block,
-            peek_block: None,
         })
     }
 
-    async fn download_block(&mut self, number: u64) -> anyhow::Result<Block> {
-        if self.current_block + 1 == number {
-            if let Some(block) = self.peek_block.clone() {
-                return Ok(block);
-            }
-        }
-
-        let block = self
+    async fn download_block(&self, number: u64) -> anyhow::Result<Option<Block>> {
+        Ok(self
             .provider
             .get_block_by_number(BlockNumberOrTag::Number(number), true)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("block not found"))?;
-
-        if self.current_block + 1 == number {
-            self.peek_block = Some(block.clone());
-        }
-
-        Ok(block)
+        )
     }
 
-    async fn get_sidecars_for_current_block(
-        &mut self,
+    /// Gets sidecars for a block, using the next block's parent beacon block root.
+    async fn get_sidecars_from_next_block(
+        &self, next_block: &Block,
     ) -> anyhow::Result<Option<BlobSidecarResponse>> {
-        let next_block = self.download_block(self.current_block + 1).await?;
-
         let Some(next_pbbr) = next_block.header.parent_beacon_block_root else {
             // No parent beacon block root, which means no blobs either.
             return Ok(None);
@@ -171,18 +140,70 @@ impl Downloader {
         Ok(Some(self.http.get(&url).send().await?.json().await?))
     }
 
-    /// Fetches bundles and advances to the next block if successful.
-    pub async fn next_block_bundles(&mut self) -> anyhow::Result<Vec<(Header, Bundle)>> {
-        let this_block = self.download_block(self.current_block).await?;
-        let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract)?;
+    pub fn stream<'a>(mut self) -> impl Stream<Item = anyhow::Result<(Header, Bundle)>> + 'a {
+        let (tx, rx) = mpsc::channel(1);
 
-        let sidecars = self.get_sidecars_for_current_block().await?;
-        let mut result = Vec::new();
-        if let Some(sidecars) = sidecars {
-            result.extend(get_blobs_from_beacon_response(sidecars, blob_ids)?);
-        }
+        tokio::spawn(async move {
+            loop {                
+                let this_block = match self.download_block(self.current_block).await {
+                    Ok(Some(block)) => block,
+                    Ok(None) => {
+                        // Block is not yet available, try again later.
+                        log::trace!("Block is not yet available, try again later.");
+                        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+                        continue;
+                    },
+                    Err(e) => {
+                        let _ = tx.send(Err(e)).await;
+                        return;
+                    }
+                };
 
-        self.current_block += 1;
-        Ok(result)
+                let next_block = match self.download_block(self.current_block + 1).await {
+                    Ok(Some(block)) => block,
+                    Ok(None) => {
+                        // Block is not yet available, try again later.
+                        log::trace!("Block is not yet available, try again later.");
+                        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+                        continue;
+                    },
+                    Err(e) => {
+                        let _ = tx.send(Err(e)).await;
+                        return;
+                    }
+                };
+
+                self.current_block += 1;
+                log::trace!("Processing block: {}", self.current_block);
+
+                let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract);
+                match self.get_sidecars_from_next_block(&next_block).await {
+                    Ok(Some(sidecars)) => {
+                        match get_blobs_from_beacon_response(sidecars, blob_ids) {
+                            Ok(items) => {
+                                for item in items {
+                                    if tx.send(Ok(item)).await.is_err() {
+                                        return;
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                if tx.send(Err(e)).await.is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                    },
+                    Ok(None) => {},
+                    Err(e) => {
+                        if tx.send(Err(e)).await.is_err() {
+                            return;
+                        }
+                    },
+                }
+            }
+        });
+
+        ReceiverStream::new(rx)
     }
 }
