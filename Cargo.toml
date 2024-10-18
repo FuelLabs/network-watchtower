@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin",
+    "crates/block-syncer",
     "crates/client-ext",
     "crates/downloader",
 ]
@@ -24,10 +25,12 @@ version = "0.0.1"
 [workspace.dependencies]
 fuel-core = { version = "0.40.0" }
 fuel-core-bin = { version = "0.40.0", default-features = false, features = ["rocksdb-production", "relayer"] }
+fuel-core-compression = { version = "0.40.0" }
 fuel-core-client = { version = "0.40.0" }
-fuel-core-types = { version = "0.40.0" }
+fuel-core-types = { version = "0.40.0", features = ["da-compression"] }
 
-client-ext = { path = "crates/client-ext" }
+fuel-core-block-syncer = { path = "crates/block-syncer" }
+fuel-core-client-ext = { path = "crates/client-ext" }
 
 anyhow = "1.0"
 clap = "4.4"
@@ -38,3 +41,4 @@ tracing-attributes = "0.1"
 tokio = { version = "1.40", default-features = false }
 tikv-jemallocator = "0.5"
 itertools = "0.13"
+postcard = "1"

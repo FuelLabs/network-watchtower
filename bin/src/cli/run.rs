@@ -1,5 +1,3 @@
-mod block_syncer;
-
 use clap::Parser;
 use fuel_core::service::genesis::NotifyCancel;
 use url::Url;
