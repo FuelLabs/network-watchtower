@@ -4,28 +4,33 @@
 #![deny(warnings)]
 
 use cynic::QueryBuilder;
-use fuel_core_client::client::{
-    pagination::{
-        PaginatedResult,
-        PaginationRequest,
-    },
-    schema::{
-        block::{
-            BlockByHeightArgs,
-            Header,
+use fuel_core_client::{
+    client,
+    client::{
+        pagination::{
+            PaginatedResult,
+            PaginationRequest,
         },
-        schema,
-        tx::OpaqueTransactionWithStatus,
-        ConnectionArgs,
-        PageInfo,
+        schema::{
+            block::{
+                BlockByHeightArgs,
+                Consensus,
+                Header,
+            },
+            schema,
+            tx::OpaqueTransactionWithStatus,
+            ConnectionArgs,
+            PageInfo,
+        },
+        types::{
+            TransactionResponse,
+            TransactionStatus,
+        },
+        FuelClient,
     },
-    types::{
-        TransactionResponse,
-        TransactionStatus,
-    },
-    FuelClient,
 };
 use fuel_core_types::{
+    blockchain,
     blockchain::{
         block::Block,
         header::{
@@ -33,6 +38,7 @@ use fuel_core_types::{
             ConsensusHeader,
             PartialBlockHeader,
         },
+        SealedBlock,
     },
     fuel_tx::Bytes32,
 };
@@ -78,6 +84,7 @@ pub struct FullBlockByHeightQuery {
 #[cynic(schema_path = "./target/schema.sdl", graphql_type = "Block")]
 pub struct FullBlock {
     pub header: Header,
+    pub consensus: Consensus,
     pub transactions: Vec<OpaqueTransactionWithStatus>,
 }
 
@@ -112,7 +119,7 @@ impl ClientExt for FuelClient {
     }
 }
 
-impl TryFrom<FullBlock> for Block {
+impl TryFrom<FullBlock> for SealedBlock {
     type Error = anyhow::Error;
 
     fn try_from(full_block: FullBlock) -> Result<Self, Self::Error> {
@@ -177,7 +184,36 @@ impl TryFrom<FullBlock> for Block {
         let block = Block::try_from_executed(header, transactions)
             .ok_or(anyhow::anyhow!("Failed to create block from transactions"))?;
 
-        Ok(block)
+        let consensus: client::types::Consensus = full_block.consensus.into();
+
+        let consensus = match consensus {
+            client::types::Consensus::Genesis(genesis) => {
+                use blockchain::consensus as core_consensus;
+                core_consensus::Consensus::Genesis(core_consensus::Genesis {
+                    chain_config_hash: genesis.chain_config_hash,
+                    coins_root: genesis.coins_root,
+                    contracts_root: genesis.contracts_root,
+                    messages_root: genesis.messages_root,
+                    transactions_root: genesis.transactions_root,
+                })
+            }
+            client::types::Consensus::PoAConsensus(poa) => {
+                use blockchain::consensus as core_consensus;
+                core_consensus::Consensus::PoA(core_consensus::poa::PoAConsensus {
+                    signature: poa.signature,
+                })
+            }
+            client::types::Consensus::Unknown => {
+                return Err(anyhow::anyhow!("Unknown consensus type"));
+            }
+        };
+
+        let sealed = SealedBlock {
+            entity: block,
+            consensus,
+        };
+
+        Ok(sealed)
     }
 }
 
@@ -206,7 +242,7 @@ mod tests {
             .into_iter()
             .next()
             .expect("Should have a block");
-        let result: anyhow::Result<Block> = full_block.try_into();
+        let result: anyhow::Result<SealedBlock> = full_block.try_into();
         assert!(result.is_ok(), "{result:?}");
     }
 }

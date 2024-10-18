@@ -21,12 +21,12 @@ alloy = { version = "0.4.2", features = [
 anyhow = { workspace = true }
 clap = { workspace = true }
 fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer", branch = "feat/blob_metadata" }
+fuel-core-types = { workspace = true }
 futures-util = "0.3"
 hex = "0.4.3"
-log = "0.4"
 reqwest = "0.12"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 sha2 = "0.10.8"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-stream = "0.1.16"
+tracing = { workspace = true }

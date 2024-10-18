@@ -1,40 +1,74 @@
+use crate::cli::run::sync_service::SyncService;
 use clap::Parser;
+use fuel_block_syncer::config::Config as BlockSyncerConfig;
 use fuel_core::service::genesis::NotifyCancel;
-use url::Url;
+use fuel_network_watchtower_downloader::Config as DownloaderConfig;
+
+mod sync_service;
+mod sync_task;
 
 /// Run the Fuel network watchtower.
 #[derive(Debug, Clone, Parser)]
-pub struct Command {
+pub struct WatchtowerCommand {
     #[clap(flatten)]
     pub fuel_core: fuel_core_bin::cli::run::Command,
 
-    /// The URL of the fuel sentry that supports GraphQL.
-    #[arg(long = "url", env)]
-    pub fuel_sentry_url: Url,
+    #[clap(flatten)]
+    pub block_sync_config: BlockSyncerConfig,
+
+    /// URL to the Ethereum consensus/beacon layer RPC endpoint.
+    /// For example `https://ethereum-sepolia.core.chainstack.com/beacon/API_KEY_HERE`.
+    #[clap(long, env = "BEACON_RPC_URL")]
+    pub beacon_rpc_url: url::Url,
+
+    /// Contract to monitor for new blobs.
+    /// For example `0xB0B3682211533cB7C1a3Bcb0e0Dd4349fF000d75`.
+    #[clap(long, env = "BLOB_CONTRACT")]
+    pub blob_contract: fuel_core::types::fuel_types::Bytes20,
 }
 
-pub async fn exec(command: Command) -> anyhow::Result<()> {
+pub async fn exec(command: WatchtowerCommand) -> anyhow::Result<()> {
+    let eth_rpcs = command
+        .fuel_core
+        .relayer_args
+        .relayer
+        .as_ref()
+        .ok_or(anyhow::anyhow!(
+            "Relayer URL is required for the downloader"
+        ))?
+        .clone();
+
     let (service, shutdown_listener) =
         fuel_core_bin::cli::run::get_service_with_shutdown_listeners(command.fuel_core)
             .await?;
 
+    let downloader_config = DownloaderConfig {
+        ethereum_rpc_url: eth_rpcs[0].clone(),
+        beacon_rpc_url: command.beacon_rpc_url,
+        blob_contract: command.blob_contract,
+        // We will set it later in the syncer.
+        start_block: 0,
+    };
+
+    let syncer = SyncService::new(service, command.block_sync_config, downloader_config)?;
+
     tokio::select! {
-        result = service.start_and_await() => {
+        result = syncer.start_and_await() => {
             result?;
         }
         _ = shutdown_listener.wait_until_cancelled() => {
-            service.send_stop_signal();
+            syncer.send_stop_signal();
         }
     }
 
     tokio::select! {
-        result = service.await_shutdown() => {
+        result = syncer.await_shutdown() => {
             result?;
         }
         _ = shutdown_listener.wait_until_cancelled() => {}
     }
 
-    service.send_stop_signal_and_await_shutdown().await?;
+    syncer.send_stop_signal_and_await_shutdown().await?;
 
     Ok(())
 }

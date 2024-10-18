@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 #[tokio::main]
 async fn main() {
     let config = Config::read_from_env().unwrap();
-    let mut downloader = Downloader::new(config).unwrap().stream();
+    let mut downloader = Downloader::new(config).stream();
 
     while let Some(result) = downloader.next().await {
         match result {

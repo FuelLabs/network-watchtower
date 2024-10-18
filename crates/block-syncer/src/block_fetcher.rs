@@ -8,12 +8,13 @@ use fuel_core_client::client::{
 use fuel_core_client_ext::ClientExt;
 use fuel_core_compression::VersionedCompressedBlock;
 use fuel_core_types::{
-    blockchain::block::Block,
+    blockchain::SealedBlock,
     fuel_types::BlockHeight,
 };
 use itertools::Itertools;
 use std::ops::Range;
 
+#[derive(Clone)]
 pub struct BlockFetcher {
     client: FuelClient,
 }
@@ -26,20 +27,20 @@ impl BlockFetcher {
 }
 
 impl BlockFetcher {
-    async fn last_height(&self) -> anyhow::Result<BlockHeight> {
+    pub async fn last_height(&self) -> anyhow::Result<BlockHeight> {
         let chain_info = self.client.chain_info().await?;
         let height = chain_info.latest_block.header.height.into();
 
         Ok(height)
     }
 
-    async fn block_for(&self, range: Range<u32>) -> anyhow::Result<Vec<Block>> {
+    pub async fn block_for(&self, range: Range<u32>) -> anyhow::Result<Vec<SealedBlock>> {
         if range.is_empty() {
             return Ok(vec![]);
         }
 
         let start = range.start.saturating_sub(1);
-        let size = range.len() as i32;
+        let size = i32::try_from(range.len()).expect("Should be a valid i32");
 
         let request = PaginationRequest {
             cursor: Some(start.to_string()),
@@ -55,10 +56,10 @@ impl BlockFetcher {
         Ok(blocks)
     }
 
-    async fn compressed_block_for(
+    pub async fn compressed_block_for(
         &self,
         range: Range<u32>,
-    ) -> anyhow::Result<Vec<VersionedCompressedBlock>> {
+    ) -> anyhow::Result<Vec<Option<VersionedCompressedBlock>>> {
         if range.is_empty() {
             return Ok(vec![]);
         }
@@ -75,8 +76,7 @@ impl BlockFetcher {
 
         let compressed_blocks = compressed_blocks
             .into_iter()
-            .flatten()
-            .map(|block| postcard::from_bytes(&block))
+            .map(|block| block.map(|block| postcard::from_bytes(&block)).transpose())
             .try_collect()?;
 
         Ok(compressed_blocks)
@@ -103,8 +103,8 @@ mod tests {
         assert_eq!(blocks.len(), (END - START) as usize);
 
         for i in START..END {
-            let block: &Block = &blocks[i.saturating_sub(START) as usize];
-            assert_eq!(*block.header().height(), i.into());
+            let block = &blocks[i.saturating_sub(START) as usize];
+            assert_eq!(*block.entity.header().height(), i.into());
         }
     }
 
@@ -126,8 +126,9 @@ mod tests {
         assert_eq!(blocks.len(), (end - start) as usize);
 
         for i in start..end {
-            let block: &VersionedCompressedBlock =
-                &blocks[i.saturating_sub(start) as usize];
+            let Some(block) = &blocks[i.saturating_sub(start) as usize] else {
+                panic!("Block at height {} is missing", i);
+            };
 
             let VersionedCompressedBlock::V0(block) = block;
 

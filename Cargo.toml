@@ -27,18 +27,37 @@ fuel-core = { version = "0.40.0" }
 fuel-core-bin = { version = "0.40.0", default-features = false, features = ["rocksdb-production", "relayer"] }
 fuel-core-compression = { version = "0.40.0" }
 fuel-core-client = { version = "0.40.0" }
+fuel-core-relayer = { version = "0.40.0" }
+fuel-core-poa = { version = "0.40.0" }
+fuel-core-services = { version = "0.40.0" }
+fuel-core-storage = { version = "0.40.0" }
 fuel-core-types = { version = "0.40.0", features = ["da-compression"] }
 
-fuel-core-block-syncer = { path = "crates/block-syncer" }
+fuel-block-syncer = { path = "crates/block-syncer" }
 fuel-core-client-ext = { path = "crates/client-ext" }
+fuel-network-watchtower-downloader = { path = "crates/downloader" }
 
+async-trait = "0.1"
 anyhow = "1.0"
-clap = "4.4"
+clap = { version = "4.4", features = ["derive", "env"] }
 hex = { version = "0.4", features = ["serde"] }
 futures = "0.3"
+futures-util = "0.3"
 tracing = "0.1"
 tracing-attributes = "0.1"
 tokio = { version = "1.40", default-features = false }
 tikv-jemallocator = "0.5"
 itertools = "0.13"
 postcard = "1"
+url = { version = "2.2" }
+
+[patch.crates-io]
+fuel-core = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-bin = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-compression = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-client = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-relayer = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-poa = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-services = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-storage = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
+fuel-core-types = { git = "https://github.com/FuelLabs/fuel-core/", branch = "dento/da-compression-decompress-test-ext" }
