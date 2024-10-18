@@ -7,20 +7,31 @@ use fuel_core_client::client::{
     schema::{
         block::{
             BlockByHeightArgs,
-            Consensus,
             Header,
         },
-        primitives::TransactionId,
         schema,
-        tx::TransactionStatus,
-        BlockId,
+        tx::OpaqueTransactionWithStatus,
         ConnectionArgs,
-        HexString,
         PageInfo,
+    },
+    types::{
+        TransactionResponse,
+        TransactionStatus,
     },
     FuelClient,
 };
-use fuel_core_types::fuel_crypto::PublicKey;
+use fuel_core_types::{
+    blockchain::{
+        block::Block,
+        header::{
+            ApplicationHeader,
+            ConsensusHeader,
+            PartialBlockHeader,
+        },
+    },
+    fuel_tx::Bytes32,
+};
+use itertools::Itertools;
 
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(
@@ -61,26 +72,8 @@ pub struct FullBlockByHeightQuery {
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(schema_path = "./target/schema.sdl", graphql_type = "Block")]
 pub struct FullBlock {
-    pub id: BlockId,
     pub header: Header,
-    pub consensus: Consensus,
-    pub transactions: Vec<OpaqueTransaction>,
-}
-
-impl FullBlock {
-    /// Returns the block producer public key, if any.
-    pub fn block_producer(&self) -> Option<PublicKey> {
-        let message = self.header.id.clone().into_message();
-        match &self.consensus {
-            Consensus::Genesis(_) => Some(Default::default()),
-            Consensus::PoAConsensus(poa) => {
-                let signature = poa.signature.clone().into_signature();
-                let producer_pub_key = signature.recover(&message);
-                producer_pub_key.ok()
-            }
-            Consensus::Unknown => None,
-        }
-    }
+    pub transactions: Vec<OpaqueTransactionWithStatus>,
 }
 
 impl From<FullBlockConnection> for PaginatedResult<FullBlock, String> {
@@ -92,14 +85,6 @@ impl From<FullBlockConnection> for PaginatedResult<FullBlock, String> {
             results: conn.edges.into_iter().map(|e| e.node).collect(),
         }
     }
-}
-
-#[derive(cynic::QueryFragment, Clone, Debug)]
-#[cynic(schema_path = "./target/schema.sdl", graphql_type = "Transaction")]
-pub struct OpaqueTransaction {
-    pub id: TransactionId,
-    pub raw_payload: HexString,
-    pub status: Option<TransactionStatus>,
 }
 
 #[async_trait::async_trait]
@@ -122,6 +107,75 @@ impl ClientExt for FuelClient {
     }
 }
 
+impl TryFrom<FullBlock> for Block {
+    type Error = anyhow::Error;
+
+    fn try_from(full_block: FullBlock) -> Result<Self, Self::Error> {
+        let transactions: Vec<TransactionResponse> = full_block
+            .transactions
+            .into_iter()
+            .map(TryInto::try_into)
+            .try_collect()?;
+
+        let messages = transactions
+            .iter()
+            .map(|tx| &tx.status)
+            .filter_map(|status| match status {
+                TransactionStatus::Success { receipts, .. } => Some(receipts),
+                _ => None,
+            })
+            .flat_map(|receipt| {
+                receipt.iter().filter_map(|r| r.message_id()).collect_vec()
+            })
+            .collect_vec();
+
+        let transactions = transactions
+            .into_iter()
+            .map(|tx| tx.transaction)
+            .collect_vec();
+
+        let partial_header = PartialBlockHeader {
+            application: ApplicationHeader {
+                da_height: full_block.header.da_height.0.into(),
+                consensus_parameters_version: full_block
+                    .header
+                    .consensus_parameters_version
+                    .into(),
+                state_transition_bytecode_version: full_block
+                    .header
+                    .state_transition_bytecode_version
+                    .into(),
+                generated: Default::default(),
+            },
+            consensus: ConsensusHeader {
+                prev_root: full_block.header.prev_root.into(),
+                height: full_block.header.height.into(),
+                time: full_block.header.time.into(),
+                generated: Default::default(),
+            },
+        };
+
+        let header = partial_header
+            .generate(
+                &transactions,
+                &messages,
+                full_block.header.event_inbox_root.into(),
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        let actual_id: Bytes32 = full_block.header.id.into();
+        let expected_id: Bytes32 = header.id().into();
+        if expected_id != actual_id {
+            return Err(anyhow::anyhow!("Header id mismatch"));
+        }
+
+        let block = Block::try_from_executed(header, transactions)
+            .ok_or(anyhow::anyhow!("Failed to create block from transactions"))?;
+
+        Ok(block)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,44 +183,25 @@ mod tests {
 
     #[tokio::test]
     async fn testnet_works() {
-        let client = FuelClient::new("http://127.0.0.1:4000")
+        let client = FuelClient::new("https://testnet.fuel.network")
             .expect("Should connect to the beta 5 network");
 
-        let producer_before_4 = client.block_by_height(9704464.into()).await.unwrap().unwrap().block_producer;
-        let producer_before_3 = client.block_by_height(9704465.into()).await.unwrap().unwrap().block_producer;
-        let producer_before_2 = client.block_by_height(9704466.into()).await.unwrap().unwrap().block_producer;
-        let producer_before_1 = client.block_by_height(9704467.into()).await.unwrap().unwrap().block_producer;
-        let producer_before = client.block_by_height(9704468.into()).await.unwrap().unwrap().block_producer;
-        let producer_after = client.block_by_height(9704469.into()).await.unwrap().unwrap().block_producer;
-        let producer_after_1 = client.block_by_height(9704470.into()).await.unwrap().unwrap().block_producer;
-        let producer_after_2 = client.block_by_height(9704471.into()).await.unwrap().unwrap().block_producer;
-        let producer_after_3 = client.block_by_height(9704472.into()).await.unwrap().unwrap().block_producer;
-        let producer_after_4 = client.block_by_height(9704473.into()).await.unwrap().unwrap().block_producer;
-        let producer_after_5 = client.block_by_height(9704474.into()).await.unwrap().unwrap().block_producer;
-        let latest = client.block_by_height(9704674.into()).await.unwrap().unwrap().block_producer;
-        // assert_eq!(producer_before, producer_before_1);
-        // assert_ne!(producer_before, producer_after);
-        // assert_eq!(producer_after_1, producer_after_2);
-        // assert_eq!(producer_after_1, producer_after);
-        println!("producer_before_4: {:?}", producer_before_4);
-        println!("producer_before_3: {:?}", producer_before_3);
-        println!("producer_before_2: {:?}", producer_before_2);
-        println!("producer_before_1: {:?}", producer_before_1);
-        println!("producer_before: {:?}", producer_before);
-        println!("producer_after: {:?}", producer_after);
-        println!("producer_after_1: {:?}", producer_after_1);
-        println!("producer_after_2: {:?}", producer_after_2);
-        println!("producer_after_3: {:?}", producer_after_3);
-        println!("producer_after_4: {:?}", producer_after_4);
-        println!("producer_after_5: {:?}", producer_after_5);
-        println!("latest: {:?}", latest);
-        // let request = PaginationRequest {
-        //     cursor: None,
-        //     results: 1,
-        //     direction: PageDirection::Backward,
-        // };
-        // let full_block = client.full_blocks(request).await;
-        //
-        // assert!(full_block.is_ok(), "{full_block:?}");
+        let request = PaginationRequest {
+            cursor: None,
+            results: 1,
+            direction: PageDirection::Backward,
+        };
+        let full_blocks = client
+            .full_blocks(request)
+            .await
+            .expect("Should get a blocks");
+
+        let full_block = full_blocks
+            .results
+            .into_iter()
+            .next()
+            .expect("Should have a block");
+        let result: anyhow::Result<Block> = full_block.try_into();
+        assert!(result.is_ok(), "{result:?}");
     }
 }

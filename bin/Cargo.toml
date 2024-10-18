@@ -23,6 +23,7 @@ dotenvy = "0.15"
 fuel-core = { workspace = true }
 fuel-core-bin = { workspace = true }
 fuel-core-client = { workspace = true }
+itertools = { workspace = true }
 tikv-jemallocator = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
