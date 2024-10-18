@@ -12,10 +12,12 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
+anyhow = { workspace = true }
 async-trait = "0.1"
 cynic = { version = "2.2", features = ["http-reqwest"] }
 fuel-core-client = { workspace = true }
 fuel-core-types = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["full"] }
