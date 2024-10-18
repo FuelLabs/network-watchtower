@@ -23,6 +23,7 @@ use fuel_core::{
             DecompressDbTx,
         },
         ports::DatabaseBlocks,
+        storage::da_compression::DaCompressedBlocks,
     },
     service::{
         adapters::{
@@ -46,6 +47,7 @@ use fuel_core_storage::{
         HistoricalView,
         WriteTransaction,
     },
+    StorageAsMut,
 };
 use fuel_core_types::{
     blockchain::{
@@ -201,7 +203,7 @@ impl BlockSyncer {
 
         let mut latest_compression_height = self.compression_latest_height();
         let start_compression_height = start_compression_height
-            .max(latest_compression_height.unwrap_or_default().into());
+            .max(u32::from(latest_compression_height.unwrap_or_default()) + 1);
 
         let block_fetcher = Arc::new(self.block_fetcher.clone());
 
@@ -251,10 +253,7 @@ impl BlockSyncer {
                     }
                 }
                 Some(block) => {
-                    tracing::info!("Apply compression for block: {:?}", block.height());
-                    let tx = self.apply_compression(&block).await?;
-                    tx.commit_compression()?;
-
+                    self.commit_compression(&block).await?;
                     latest_compression_height = Some(*block.height());
                 }
             }
@@ -263,61 +262,100 @@ impl BlockSyncer {
         Ok(())
     }
 
+    async fn commit_compression(
+        &mut self,
+        block: &VersionedCompressedBlock,
+    ) -> anyhow::Result<()> {
+        tracing::info!("Apply compression for block: {:?}", block.height());
+        let tx = self.apply_compression(block).await?;
+        tx.commit_compression()?;
+
+        Ok(())
+    }
+
     pub async fn import_bytes_from_da(&mut self, bytes: Vec<u8>) -> anyhow::Result<()> {
-        tracing::info!("Importing compressed block from DA");
         let compressed_block: VersionedCompressedBlock = postcard::from_bytes(&bytes)?;
+
+        let block_height = *compressed_block.height();
+        let less_than_on_chain = block_height <= self.on_chain_latest_height()?;
+
+        let compression_block_height = self.compression_latest_height();
+
+        if less_than_on_chain {
+            if let Some(compression_block_height) = compression_block_height {
+                if *compressed_block.height() <= compression_block_height {
+                    tracing::info!(
+                        "Skipping block {} from DA since it is already known",
+                        compressed_block.height()
+                    );
+                    return Ok(())
+                }
+            }
+        }
+
+        tracing::info!(
+            "Importing compressed block {} from DA",
+            compressed_block.height()
+        );
 
         let compression_changes = self
             .apply_compression(&compressed_block)
             .await?
             .into_changes();
-        let decompressed_block = self.decompress_block(compressed_block).await?;
 
-        let mut transactions = decompressed_block.transactions;
-        let maybe_mint_tx = transactions.pop();
-        let mint_tx =
-            maybe_mint_tx
-                .and_then(|tx| tx.as_mint().cloned())
-                .ok_or(anyhow!(
-                    "The last transaction in the block should be a mint transaction"
-                ))?;
+        if !less_than_on_chain {
+            let decompressed_block = self.decompress_block(compressed_block).await?;
 
-        let gas_price = *mint_tx.gas_price();
-        let coinbase_recipient = mint_tx.input_contract().contract_id;
+            let mut transactions = decompressed_block.transactions;
+            let maybe_mint_tx = transactions.pop();
+            let mint_tx =
+                maybe_mint_tx
+                    .and_then(|tx| tx.as_mint().cloned())
+                    .ok_or(anyhow!(
+                        "The last transaction in the block should be a mint transaction"
+                    ))?;
 
-        let component = Components {
-            header_to_produce: decompressed_block.header,
-            transactions_source: transactions,
-            coinbase_recipient,
-            gas_price,
-        };
+            let gas_price = *mint_tx.gas_price();
+            let coinbase_recipient = mint_tx.input_contract().contract_id;
 
-        let (execution_result, changes) = self
-            .executor
-            .produce_without_commit_from_vector(component)?
-            .into();
+            let component = Components {
+                header_to_produce: decompressed_block.header,
+                transactions_source: transactions,
+                coinbase_recipient,
+                gas_price,
+            };
 
-        let sealed_block = SealedBlock {
-            entity: execution_result.block,
-            consensus: Consensus::PoA(PoAConsensus {
-                // If data is posted to DA it already a proof that it was signed by
-                // the block producer.
-                // We only need to verify that execution was done correctly.
-                signature: Default::default(),
-            }),
-        };
+            let (execution_result, changes) = self
+                .executor
+                .produce_without_commit_from_vector(component)?
+                .into();
 
-        let import_result = Uncommitted::new(
-            ImportResult::new_from_local(
-                sealed_block,
-                execution_result.tx_status,
-                execution_result.events,
-            ),
-            changes,
-        );
+            let sealed_block = SealedBlock {
+                entity: execution_result.block,
+                consensus: Consensus::PoA(PoAConsensus {
+                    // If data is posted to DA it already a proof that it was signed by
+                    // the block producer.
+                    // We only need to verify that execution was done correctly.
+                    signature: Default::default(),
+                }),
+            };
 
-        self.block_importer.commit_result(import_result).await?;
-        self.database.commit_compression(compression_changes)?;
+            let import_result = Uncommitted::new(
+                ImportResult::new_from_local(
+                    sealed_block,
+                    execution_result.tx_status,
+                    execution_result.events,
+                ),
+                changes,
+            );
+
+            self.block_importer.commit_result(import_result).await?;
+        }
+
+        let compression_block_height = compression_block_height.unwrap_or_default();
+        if block_height > compression_block_height {
+            self.database.commit_compression(compression_changes)?;
+        }
 
         Ok(())
     }
@@ -328,12 +366,17 @@ impl BlockSyncer {
     ) -> anyhow::Result<CompressionTransaction> {
         let mut tx = self.database.write_transaction();
 
-        let VersionedCompressedBlock::V0(block) = block;
-
         let mut compression_tx = tx.write_transaction();
+
+        compression_tx
+            .storage_as_mut::<DaCompressedBlocks>()
+            .insert(block.height(), &block)?;
+
         let mut compression_db = DbTx {
             db_tx: &mut compression_tx,
         };
+
+        let VersionedCompressedBlock::V0(block) = block;
 
         block
             .registrations

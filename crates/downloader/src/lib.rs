@@ -181,7 +181,7 @@ impl Downloader {
     ) -> anyhow::Result<()> {
         let mut bundle_buffer_by_id: HashMap<u32, Vec<(HeaderV1, Blob)>> = HashMap::new();
         loop {
-            tracing::trace!("Processing block: {}", self.current_block);
+            tracing::trace!("Trying to processing block: {}", self.current_block);
             // TODO: reuse next_block from the previous iteration to avoid an extra api call
             let Some(this_block) = self.download_block(self.current_block).await? else {
                 tracing::trace!("Block is not yet available, try again later.");
@@ -196,7 +196,7 @@ impl Downloader {
                 continue;
             };
 
-            tracing::trace!("Processing block: {}", self.current_block);
+            tracing::info!("Processing block: {}", self.current_block);
             self.current_block += 1;
 
             let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract);
@@ -216,6 +216,13 @@ impl Downloader {
                             anyhow::bail!("Duplicate blob with index {}", header.idx)
                         }
                         Err(idx) => {
+                            tracing::info!(
+                                "Inserted blob for the block {}, bundle {}, index {}, last {}",
+                                self.current_block,
+                                header.bundle_id,
+                                header.idx,
+                                header.is_last,
+                            );
                             blobs.insert(idx, (header, blob));
                         }
                     }
