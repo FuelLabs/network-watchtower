@@ -19,6 +19,7 @@ alloy = { version = "0.4.2", features = [
     "eips",
 ] }
 anyhow = { workspace = true }
+clap = { workspace = true }
 fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer", branch = "feat/blob_metadata" }
 futures-util = "0.3"
 hex = "0.4.3"
