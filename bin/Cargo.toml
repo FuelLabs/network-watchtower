@@ -1,0 +1,32 @@
+[package]
+authors = { workspace = true }
+categories = ["concurrency", "cryptography::cryptocurrencies", "emulators"]
+description = "Fuel client binary."
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = ["blockchain", "cryptocurrencies", "fuel-vm", "vm"]
+license = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
+name = "fuel-core-network-watchtower"
+publish = true
+
+[[bin]]
+name = "network-watchtower"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+client-ext = { workspace = true }
+dotenvy = "0.15"
+fuel-core = { workspace = true }
+fuel-core-bin = { workspace = true }
+fuel-core-client = { workspace = true }
+tikv-jemallocator = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }
+url = { version = "2.2" }
+
+[features]
+default = []

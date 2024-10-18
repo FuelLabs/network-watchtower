@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "bin",
+    "crates/client-ext"
+]
+resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+panic = "unwind"
+
+[workspace.package]
+authors = ["Fuel Labs <contact@fuel.sh>"]
+categories = ["concurrency", "cryptography::cryptocurrencies", "emulators"]
+edition = "2021"
+homepage = "https://fuel.network/"
+keywords = ["blockchain", "cryptocurrencies", "fuel-vm", "vm"]
+license = "BUSL-1.1"
+repository = "https://github.com/FuelLabs/network-watchtower"
+version = "0.0.1"
+
+[workspace.dependencies]
+fuel-core = { version = "0.40.0" }
+fuel-core-bin = { version = "0.40.0", default-features = false, features = ["rocksdb-production", "relayer"] }
+fuel-core-client = { version = "0.40.0" }
+fuel-core-types = { version = "0.40.0" }
+
+client-ext = { path = "crates/client-ext" }
+
+anyhow = "1.0"
+clap = "4.4"
+hex = { version = "0.4", features = ["serde"] }
+futures = "0.3"
+tracing = "0.1"
+tracing-attributes = "0.1"
+tokio = { version = "1.40", default-features = false }
+tikv-jemallocator = "0.5"
