@@ -1,4 +1,7 @@
-use fuel_network_watchtower_downloader::{Downloader, Config};
+use fuel_network_watchtower_downloader::{
+    Config,
+    Downloader,
+};
 use futures_util::StreamExt;
 
 #[tokio::main]
@@ -8,14 +11,13 @@ async fn main() {
 
     while let Some(result) = downloader.next().await {
         match result {
-            Ok((header, bundle)) => {
-                println!("Header: {:?}", header);
-                println!("Bundle: {:?}", bundle);
-            },
+            Ok(block) => {
+                println!("Block: {:?}", block);
+            }
             Err(e) => {
                 eprintln!("Error: {:?}", e);
                 break;
-            },
+            }
         }
     }
 }

@@ -1,8 +1,10 @@
-use serde::{Deserialize, Serialize};
 use clap::Parser;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-#[derive(Parser)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Parser, Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// URL to the Ethereum RPC endpoint.
     /// For example `https://sepolia.infura.io/v3/API_KEY_HERE`.

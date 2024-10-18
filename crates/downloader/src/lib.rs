@@ -1,22 +1,42 @@
 //! Example of subscribing and listening for specific contract events by `WebSocket` subscription.
 
+use std::collections::HashMap;
+
 use alloy::{
     primitives::Address,
-    providers::{Provider, ProviderBuilder, RootProvider},
-    rpc::types::{Block, BlockNumberOrTag},
+    providers::{
+        Provider,
+        ProviderBuilder,
+        RootProvider,
+    },
+    rpc::types::{
+        Block,
+        BlockNumberOrTag,
+    },
     transports::http::Http,
 };
-use futures_util::{Stream};
+use futures_util::Stream;
 use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use fuel_block_committer_encoding::{
-    blob::{self, Blob, Header},
-    bundle::{self, Bundle},
+    blob::{
+        self,
+        Blob,
+        Header,
+        HeaderV1,
+    },
+    bundle::{
+        self,
+        Bundle,
+    },
 };
 
-use sha2::{Digest, Sha256};
+use sha2::{
+    Digest,
+    Sha256,
+};
 
 mod config;
 
@@ -54,7 +74,7 @@ fn get_block_tx_blobs(
 fn get_blobs_from_beacon_response(
     body: BlobSidecarResponse,
     hashes: Vec<Vec<u8>>,
-) -> anyhow::Result<Vec<(Header, Bundle)>> {
+) -> anyhow::Result<Vec<Blob>> {
     let mut result = Vec::new();
     for item in body.data.clone().into_iter() {
         // Compute the sha256 of the kzg commitment, which is used to identify the blob
@@ -75,13 +95,7 @@ fn get_blobs_from_beacon_response(
                 .try_into()
                 .map_err(|_| anyhow::anyhow!("Invalid Blob bytes"))?;
 
-            let blob_decoder = blob::Decoder::default();
-            let blob_header = blob_decoder.read_header(&blob)?;
-
-            let bundle_bytes = blob_decoder.decode(&[blob])?;
-            let bundle: Bundle = bundle::Decoder::default().decode(&bundle_bytes)?;
-
-            result.push((blob_header, bundle));
+            result.push(blob);
         }
     }
 
@@ -119,13 +133,13 @@ impl Downloader {
         Ok(self
             .provider
             .get_block_by_number(BlockNumberOrTag::Number(number), true)
-            .await?
-        )
+            .await?)
     }
 
     /// Gets sidecars for a block, using the next block's parent beacon block root.
     async fn get_sidecars_from_next_block(
-        &self, next_block: &Block,
+        &self,
+        next_block: &Block,
     ) -> anyhow::Result<Option<BlobSidecarResponse>> {
         let Some(next_pbbr) = next_block.header.parent_beacon_block_root else {
             // No parent beacon block root, which means no blobs either.
@@ -140,70 +154,98 @@ impl Downloader {
         Ok(Some(self.http.get(&url).send().await?.json().await?))
     }
 
-    pub fn stream<'a>(mut self) -> impl Stream<Item = anyhow::Result<(Header, Bundle)>> + 'a {
+    pub fn stream<'a>(self) -> impl Stream<Item = anyhow::Result<Vec<u8>>> + 'a {
         let (tx, rx) = mpsc::channel(1);
 
         tokio::spawn(async move {
-            loop {                
-                let this_block = match self.download_block(self.current_block).await {
-                    Ok(Some(block)) => block,
-                    Ok(None) => {
-                        // Block is not yet available, try again later.
-                        log::trace!("Block is not yet available, try again later.");
-                        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
-                        continue;
-                    },
-                    Err(e) => {
-                        let _ = tx.send(Err(e)).await;
-                        return;
-                    }
-                };
-
-                let next_block = match self.download_block(self.current_block + 1).await {
-                    Ok(Some(block)) => block,
-                    Ok(None) => {
-                        // Block is not yet available, try again later.
-                        log::trace!("Block is not yet available, try again later.");
-                        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
-                        continue;
-                    },
-                    Err(e) => {
-                        let _ = tx.send(Err(e)).await;
-                        return;
-                    }
-                };
-
-                self.current_block += 1;
-                log::trace!("Processing block: {}", self.current_block);
-
-                let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract);
-                match self.get_sidecars_from_next_block(&next_block).await {
-                    Ok(Some(sidecars)) => {
-                        match get_blobs_from_beacon_response(sidecars, blob_ids) {
-                            Ok(items) => {
-                                for item in items {
-                                    if tx.send(Ok(item)).await.is_err() {
-                                        return;
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                if tx.send(Err(e)).await.is_err() {
-                                    return;
-                                }
-                            }
-                        }
-                    },
-                    Ok(None) => {},
-                    Err(e) => {
-                        if tx.send(Err(e)).await.is_err() {
-                            return;
-                        }
-                    },
+            match self.stream_inner(tx.clone()).await {
+                Ok(_) => unreachable!("Downloader stream ended unexpectedly"),
+                Err(e) => {
+                    let _ = tx.send(Err(e)).await;
                 }
             }
         });
 
         ReceiverStream::new(rx)
+    }
+
+    async fn stream_inner(
+        mut self,
+        tx: mpsc::Sender<Result<Vec<u8>, anyhow::Error>>,
+    ) -> anyhow::Result<()> {
+        let mut bundle_buffer_by_id: HashMap<u32, Vec<(HeaderV1, Blob)>> = HashMap::new();
+        loop {
+            log::trace!("Processing block: {}", self.current_block);
+            // TODO: reuse next_block from the previous iteration to avoid an extra api call
+            let Some(this_block) = self.download_block(self.current_block).await? else {
+                log::trace!("Block is not yet available, try again later.");
+                tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+                continue;
+            };
+
+            let Some(next_block) = self.download_block(self.current_block + 1).await?
+            else {
+                log::trace!("Block is not yet available, try again later.");
+                tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+                continue;
+            };
+
+            log::trace!("Processing block: {}", self.current_block);
+            self.current_block += 1;
+
+            let blob_ids = get_block_tx_blobs(&this_block, &self.target_contract);
+            if let Some(sidecars) = self.get_sidecars_from_next_block(&next_block).await?
+            {
+                let blobs = get_blobs_from_beacon_response(sidecars, blob_ids)?;
+                'blobs: for blob in blobs {
+                    let header = blob::Decoder::default().read_header(&blob)?;
+                    let Header::V1(header) = header;
+                    let bundle_id = header.bundle_id;
+                    // Insert into the buffer of this bundle, keeping the blobs inside it sorted
+                    let blobs = bundle_buffer_by_id.entry(bundle_id).or_default();
+                    match blobs
+                        .binary_search_by_key(&header.idx, |(header, _)| header.idx)
+                    {
+                        Ok(_) => {
+                            anyhow::bail!("Duplicate blob with index {}", header.idx)
+                        }
+                        Err(idx) => {
+                            blobs.insert(idx, (header, blob));
+                        }
+                    }
+                    // Check if the bundle is complete
+                    if let Some((last_header, _)) = blobs.last() {
+                        if !last_header.is_last {
+                            // Not complete yet
+                            continue 'blobs;
+                        }
+                    }
+                    let mut expected_idx = 0;
+                    for (header, _) in blobs {
+                        if header.idx != expected_idx {
+                            // Not complete yet
+                            continue 'blobs;
+                        }
+                        expected_idx += 1;
+                    }
+
+                    // Now we do have a complete bundle
+                    let blobs = bundle_buffer_by_id
+                        .remove(&bundle_id)
+                        .expect("This was inserted above");
+                    let blobs: Vec<Blob> =
+                        blobs.into_iter().map(|(_, blob)| blob).collect();
+
+                    let bundle_bytes = blob::Decoder::default().decode(&blobs)?;
+                    let bundle: Bundle =
+                        bundle::Decoder::default().decode(&bundle_bytes)?;
+                    let Bundle::V1(bundle) = bundle;
+
+                    for block in bundle.blocks {
+                        tx.send(Ok(block)).await?;
+                    }
+                }
+            }
+        }
     }
 }
