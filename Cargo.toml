@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "bin",
-    "crates/client-ext"
+    "crates/client-ext",
+    "crates/downloader",
 ]
 resolver = "2"
 
