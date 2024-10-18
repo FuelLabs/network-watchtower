@@ -1,16 +1,15 @@
 [package]
 name = "fuel-network-watchtower-downloader"
-authors.workspace = true
-categories.workspace = true
-edition.workspace = true
-homepage.workspace = true
-keywords.workspace = true
-license.workspace = true
-repository.workspace = true
-version.workspace = true
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 
 [dependencies]
-anyhow.workspace = true
 alloy = { version = "0.4.2", features = [
     "full",
     "rpc-types-debug",
@@ -19,6 +18,7 @@ alloy = { version = "0.4.2", features = [
     "rpc-client",
     "eips",
 ] }
+anyhow = { workspace = true }
 fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer", branch = "feat/blob_metadata" }
 futures-util = "0.3"
 hex = "0.4.3"

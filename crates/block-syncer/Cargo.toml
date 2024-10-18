@@ -1,5 +1,5 @@
 [package]
-name = "fuel-core-client-ext"
+name = "fuel-block-syncer"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
@@ -8,18 +8,17 @@ keywords = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }
-build = "build.rs"
+description = "Syncer of the block from the Fuel network via GraphQL"
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = "0.1"
-cynic = { version = "2.2", features = ["http-reqwest"] }
 fuel-core-client = { workspace = true }
+fuel-core-client-ext = { workspace = true }
+fuel-core-compression = { workspace = true }
 fuel-core-types = { workspace = true }
+futures = { workspace = true }
 itertools = { workspace = true }
+postcard = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
-
-[build-dependencies]
-fuel-core-client = { workspace = true }
