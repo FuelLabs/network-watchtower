@@ -3,8 +3,6 @@
 #![deny(unused_crate_dependencies)]
 #![deny(warnings)]
 
-use std::collections::HashMap;
-
 use alloy::{
     primitives::Address,
     providers::{
@@ -18,11 +16,6 @@ use alloy::{
     },
     transports::http::Http,
 };
-use futures_util::Stream;
-use serde::Deserialize;
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
-
 use fuel_block_committer_encoding::{
     blob::{
         self,
@@ -35,12 +28,22 @@ use fuel_block_committer_encoding::{
         Bundle,
     },
 };
+use fuel_core_compression::VersionedCompressedBlock;
+use fuel_core_types::fuel_types::BlockHeight;
+use futures_util::Stream;
+use itertools::Itertools;
 use reqwest::Url;
-
+use serde::Deserialize;
 use sha2::{
     Digest,
     Sha256,
 };
+use std::collections::{
+    BTreeMap,
+    HashMap,
+};
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 
 mod config;
 
@@ -159,7 +162,7 @@ impl Downloader {
         Ok(Some(self.http.get(&url).send().await?.json().await?))
     }
 
-    pub fn stream(self) -> impl Stream<Item = anyhow::Result<Vec<u8>>> {
+    pub fn stream(self) -> impl Stream<Item = anyhow::Result<VersionedCompressedBlock>> {
         let (tx, rx) = mpsc::channel(1024);
         let stream = self.stream_inner(tx.clone());
 
@@ -177,7 +180,7 @@ impl Downloader {
 
     async fn stream_inner(
         mut self,
-        tx: mpsc::Sender<Result<Vec<u8>, anyhow::Error>>,
+        tx: mpsc::Sender<Result<VersionedCompressedBlock, anyhow::Error>>,
     ) -> anyhow::Result<()> {
         let mut bundle_buffer_by_id: HashMap<u32, Vec<(HeaderV1, Blob)>> = HashMap::new();
         loop {
@@ -254,7 +257,24 @@ impl Downloader {
                         bundle::Decoder::default().decode(&bundle_bytes)?;
                     let Bundle::V1(bundle) = bundle;
 
-                    for block in bundle.blocks {
+                    let blocks: BTreeMap<BlockHeight, VersionedCompressedBlock> = bundle
+                        .blocks
+                        .into_iter()
+                        .map(|block| {
+                            let block: VersionedCompressedBlock =
+                                postcard::from_bytes(&block)
+                                    .map_err(anyhow::Error::from)?;
+
+                            Ok::<_, anyhow::Error>((*block.height(), block))
+                        })
+                        .try_collect()?;
+
+                    for (block_height, block) in blocks {
+                        tracing::info!(
+                            "Sending block {} from bundle {}",
+                            block_height,
+                            bundle_id
+                        );
                         tx.send(Ok(block)).await?;
                     }
                 }

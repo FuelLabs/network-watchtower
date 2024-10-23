@@ -3,6 +3,7 @@ use fuel_block_syncer::{
     config::Config as BlockSyncConfig,
 };
 use fuel_core::service::FuelService;
+use fuel_core_compression::VersionedCompressedBlock;
 use fuel_core_services::{
     stream::{
         BoxStream,
@@ -27,7 +28,7 @@ pub struct UninitializedTask {
 
 pub struct Task {
     block_syncer: BlockSyncer,
-    stream_from_da: BoxStream<anyhow::Result<Vec<u8>>>,
+    stream_from_da: BoxStream<anyhow::Result<VersionedCompressedBlock>>,
 }
 
 #[async_trait::async_trait]
@@ -100,7 +101,7 @@ impl RunnableTask for Task {
                         }
                     };
 
-                    let result = self.block_syncer.import_bytes_from_da(compressed_block).await;
+                    let result = self.block_syncer.import_block_from_da(compressed_block).await;
 
                     if let Err(err) = result {
                         tracing::error!("Error while importing compressed block: {:?}", err);

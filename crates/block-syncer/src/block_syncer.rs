@@ -151,7 +151,8 @@ impl BlockSyncer {
             .chunks(40)
             .map(|chunk| {
                 let start = chunk[0];
-                let last = start + u32::try_from(chunk.len()).expect("It is 40 above");
+                let last = start
+                    .saturating_add(u32::try_from(chunk.len()).expect("It is 40 above"));
 
                 start..last
             })
@@ -202,8 +203,9 @@ impl BlockSyncer {
             target_compression_height.saturating_sub(compression_window);
 
         let mut latest_compression_height = self.compression_latest_height();
-        let start_compression_height = start_compression_height
-            .max(u32::from(latest_compression_height.unwrap_or_default()) + 1);
+        let start_compression_height = start_compression_height.max(
+            u32::from(latest_compression_height.unwrap_or_default()).saturating_add(1),
+        );
 
         let block_fetcher = Arc::new(self.block_fetcher.clone());
 
@@ -212,8 +214,9 @@ impl BlockSyncer {
                 .chunks(40)
                 .map(|chunk| {
                     let start = chunk[0];
-                    let last =
-                        start + u32::try_from(chunk.len()).expect("It is 40 above");
+                    let last = start.saturating_add(
+                        u32::try_from(chunk.len()).expect("It is 40 above"),
+                    );
 
                     start..last
                 })
@@ -273,11 +276,13 @@ impl BlockSyncer {
         Ok(())
     }
 
-    pub async fn import_bytes_from_da(&mut self, bytes: Vec<u8>) -> anyhow::Result<()> {
-        let compressed_block: VersionedCompressedBlock = postcard::from_bytes(&bytes)?;
-
+    pub async fn import_block_from_da(
+        &mut self,
+        compressed_block: VersionedCompressedBlock,
+    ) -> anyhow::Result<()> {
         let block_height = *compressed_block.height();
-        let less_than_on_chain = block_height <= self.on_chain_latest_height()?;
+        let on_chain_height = self.on_chain_latest_height()?;
+        let less_than_on_chain = block_height <= on_chain_height;
 
         let compression_block_height = self.compression_latest_height();
 
@@ -370,7 +375,7 @@ impl BlockSyncer {
 
         compression_tx
             .storage_as_mut::<DaCompressedBlocks>()
-            .insert(block.height(), &block)?;
+            .insert(block.height(), block)?;
 
         let mut compression_db = DbTx {
             db_tx: &mut compression_tx,

@@ -17,8 +17,8 @@ fuel-core = { workspace = true }
 fuel-core-client = { workspace = true }
 fuel-core-client-ext = { workspace = true }
 fuel-core-compression = { workspace = true }
-fuel-core-relayer = { workspace = true }
 fuel-core-poa = { workspace = true }
+fuel-core-relayer = { workspace = true }
 fuel-core-storage = { workspace = true }
 fuel-core-types = { workspace = true }
 futures = { workspace = true }
