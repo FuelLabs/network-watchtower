@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin",
+    "crates/block-fetcher",
     "crates/block-syncer",
     "crates/client-ext",
     "crates/downloader",
@@ -34,6 +35,7 @@ fuel-core-storage = { version = "0.40.0" }
 fuel-core-types = { version = "0.40.0", features = ["da-compression"] }
 
 fuel-block-syncer = { path = "crates/block-syncer" }
+fuel-block-fetcher = { path = "crates/block-fetcher" }
 fuel-core-client-ext = { path = "crates/client-ext" }
 fuel-network-watchtower-downloader = { path = "crates/downloader" }
 

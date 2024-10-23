@@ -1,5 +1,4 @@
 use crate::{
-    block_fetcher::BlockFetcher,
     compression_database::{
         Compression,
         CompressionDatabaseExtension,
@@ -9,6 +8,7 @@ use crate::{
     config::Config,
 };
 use anyhow::anyhow;
+use fuel_block_fetcher::BlockFetcher;
 use fuel_core::{
     database::{
         database_description::{
