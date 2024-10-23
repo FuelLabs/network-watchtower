@@ -158,7 +158,7 @@ impl BlockSyncer {
             })
             .map(move |range| {
                 let block_fetcher = block_fetcher.clone();
-                async move { block_fetcher.block_for(range).await }
+                async move { block_fetcher.blocks_for(range).await }
             })
             .buffered(8);
 
@@ -177,6 +177,7 @@ impl BlockSyncer {
         });
 
         while let Some(block) = receiver.recv().await {
+            let block = block.block;
             self.relayer
                 .await_at_least_synced(&block.entity.header().da_height)
                 .await?;
@@ -222,7 +223,7 @@ impl BlockSyncer {
                 })
                 .map(move |range| {
                     let block_fetcher = block_fetcher.clone();
-                    async move { block_fetcher.compressed_block_for(range).await }
+                    async move { block_fetcher.compressed_blocks_for(range).await }
                 })
                 .buffered(8);
 

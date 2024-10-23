@@ -40,7 +40,10 @@ use fuel_core_types::{
         },
         SealedBlock,
     },
-    fuel_tx::Bytes32,
+    fuel_tx::{
+        Bytes32,
+        Receipt,
+    },
 };
 use itertools::Itertools;
 
@@ -119,7 +122,13 @@ impl ClientExt for FuelClient {
     }
 }
 
-impl TryFrom<FullBlock> for SealedBlock {
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+pub struct SealedBlockWithMetadata {
+    pub block: SealedBlock,
+    pub receipts: Vec<Option<Vec<Receipt>>>,
+}
+
+impl TryFrom<FullBlock> for SealedBlockWithMetadata {
     type Error = anyhow::Error;
 
     fn try_from(full_block: FullBlock) -> Result<Self, Self::Error> {
@@ -129,16 +138,19 @@ impl TryFrom<FullBlock> for SealedBlock {
             .map(TryInto::try_into)
             .try_collect()?;
 
-        let messages = transactions
+        let receipts = transactions
             .iter()
             .map(|tx| &tx.status)
-            .filter_map(|status| match status {
-                TransactionStatus::Success { receipts, .. } => Some(receipts),
+            .map(|status| match status {
+                TransactionStatus::Success { receipts, .. } => Some(receipts.clone()),
                 _ => None,
             })
-            .flat_map(|receipt| {
-                receipt.iter().filter_map(|r| r.message_id()).collect_vec()
-            })
+            .collect_vec();
+
+        let messages = receipts
+            .iter()
+            .flatten()
+            .flat_map(|receipt| receipt.iter().filter_map(|r| r.message_id()))
             .collect_vec();
 
         let transactions = transactions
@@ -213,6 +225,11 @@ impl TryFrom<FullBlock> for SealedBlock {
             consensus,
         };
 
+        let sealed = SealedBlockWithMetadata {
+            block: sealed,
+            receipts,
+        };
+
         Ok(sealed)
     }
 }
@@ -242,7 +259,7 @@ mod tests {
             .into_iter()
             .next()
             .expect("Should have a block");
-        let result: anyhow::Result<SealedBlock> = full_block.try_into();
+        let result: anyhow::Result<SealedBlockWithMetadata> = full_block.try_into();
         assert!(result.is_ok(), "{result:?}");
     }
 }

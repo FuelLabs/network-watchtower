@@ -5,12 +5,12 @@ use fuel_core_client::client::{
     },
     FuelClient,
 };
-use fuel_core_client_ext::ClientExt;
-use fuel_core_compression::VersionedCompressedBlock;
-use fuel_core_types::{
-    blockchain::SealedBlock,
-    fuel_types::BlockHeight,
+use fuel_core_client_ext::{
+    ClientExt,
+    SealedBlockWithMetadata,
 };
+use fuel_core_compression::VersionedCompressedBlock;
+use fuel_core_types::fuel_types::BlockHeight;
 use itertools::Itertools;
 use std::ops::Range;
 
@@ -34,7 +34,10 @@ impl BlockFetcher {
         Ok(height)
     }
 
-    pub async fn block_for(&self, range: Range<u32>) -> anyhow::Result<Vec<SealedBlock>> {
+    pub async fn blocks_for(
+        &self,
+        range: Range<u32>,
+    ) -> anyhow::Result<Vec<SealedBlockWithMetadata>> {
         if range.is_empty() {
             return Ok(vec![]);
         }
@@ -56,7 +59,7 @@ impl BlockFetcher {
         Ok(blocks)
     }
 
-    pub async fn compressed_block_for(
+    pub async fn compressed_blocks_for(
         &self,
         range: Range<u32>,
     ) -> anyhow::Result<Vec<Option<VersionedCompressedBlock>>> {
@@ -96,7 +99,7 @@ mod tests {
         const END: u32 = 110;
 
         // When
-        let result = syncer.block_for(START..END).await;
+        let result = syncer.blocks_for(START..END).await;
 
         // Then
         let blocks = result.expect("Should get blocks");
@@ -104,7 +107,7 @@ mod tests {
 
         for i in START..END {
             let block = &blocks[i.saturating_sub(START) as usize];
-            assert_eq!(*block.entity.header().height(), i.into());
+            assert_eq!(*block.block.entity.header().height(), i.into());
         }
     }
 
@@ -119,7 +122,7 @@ mod tests {
         let start = end.saturating_sub(TO_SYNC);
 
         // When
-        let result = syncer.compressed_block_for(start..end).await;
+        let result = syncer.compressed_blocks_for(start..end).await;
 
         // Then
         let blocks = result.expect("Should get blocks");
