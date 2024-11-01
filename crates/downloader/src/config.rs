@@ -16,10 +16,13 @@ pub struct Config {
     /// For example `0xB0B3682211533cB7C1a3Bcb0e0Dd4349fF000d75`.
     #[clap(long, env = "BLOB_CONTRACT")]
     pub blob_contract: fuel_core_types::fuel_types::Bytes20,
-    /// DA block to start downloading from.
+    /// DA block to start downloading from. (cli: base 10)
+    /// For example `6894445`.`
     #[clap(long, env = "DA_START_BLOCK")]
     pub da_start_block: u64,
-    /// Emit fuel blocks starting from this block.
+    /// Emit fuel blocks starting from this block. (cli: base 16)
+    /// DA start block should point to this Fuel block.
+    /// For example `0x00d56db2`.
     #[clap(long, env = "NEXT_FUEL_BLOCK")]
     pub next_fuel_block: BlockHeight,
 }

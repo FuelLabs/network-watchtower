@@ -32,7 +32,7 @@ impl IncompleteBundleBuffers {
         if let Err(idx) =
             blobs.binary_search_by_key(&header.idx, |(header, _)| header.idx)
         {
-            tracing::info!(
+            tracing::debug!(
                 "Inserted blob for bundle {}, at index {}, last {}",
                 header.bundle_id,
                 header.idx,

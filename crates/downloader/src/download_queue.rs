@@ -1,6 +1,7 @@
 use std::{
     collections::BTreeMap,
     future::Future,
+    time::Duration,
 };
 
 use alloy::{
@@ -10,7 +11,11 @@ use alloy::{
         RootProvider,
     },
     rpc::types::Block,
-    transports::http::Http,
+    transports::{
+        http::Http,
+        RpcError,
+        TransportErrorKind,
+    },
 };
 use futures_util::Stream;
 use tokio::{
@@ -19,18 +24,29 @@ use tokio::{
 };
 use tokio_stream::wrappers::ReceiverStream;
 
+#[derive(Debug)]
+pub enum GetBlockError {
+    RateLimited,
+    Other(RpcError<TransportErrorKind>),
+}
+
 pub trait GetBlock {
     fn get_block(
         &self,
         block_number: u64,
-    ) -> impl Future<Output = anyhow::Result<Option<Block>>> + Send;
+    ) -> impl Future<Output = Result<Option<Block>, GetBlockError>> + Send;
 }
 
 impl GetBlock for RootProvider<Http<reqwest::Client>> {
-    async fn get_block(&self, block_number: u64) -> anyhow::Result<Option<Block>> {
+    async fn get_block(&self, block_number: u64) -> Result<Option<Block>, GetBlockError> {
         self.get_block_by_number(BlockNumberOrTag::Number(block_number), true)
             .await
-            .map_err(anyhow::Error::from)
+            .map_err(|err| match err {
+                RpcError::ErrorResp(resp) if resp.code == 429 => {
+                    GetBlockError::RateLimited
+                }
+                other => GetBlockError::Other(other),
+            })
     }
 }
 
@@ -53,7 +69,7 @@ impl Mode {
 pub struct DownloadQueue<P> {
     provider: P,
     next_da_height: u64,
-    pending: JoinSet<anyhow::Result<Option<Block>>>,
+    pending: JoinSet<Result<Option<Block>, GetBlockError>>,
     completed: BTreeMap<u64, Block>,
 }
 
@@ -85,21 +101,35 @@ impl<P: GetBlock + Clone + Send + 'static> DownloadQueue<P> {
 
             // Wait for the next block to complete
             if let Some(block) = self.pending.join_next().await {
-                let block = block.expect("Failed to join block download task")?;
-                if let Some(block) = block {
-                    self.completed.insert(block.header.number, block);
-                } else if matches!(mode, Mode::Batch) {
-                    tracing::info!("Latest block reached, moving to polling mode");
-                    mode = Mode::Poll;
-                } else {
-                    self.next_da_height = next_to_emit;
-                    if self.pending.is_empty() {
-                        tracing::trace!(
-                            "Block is not yet available, trying again later."
-                        );
-                        tokio::time::sleep(std::time::Duration::from_secs(12)).await;
+                match block.expect("Failed to join block download task") {
+                    Ok(Some(block)) => {
+                        self.completed.insert(block.header.number, block);
                     }
-                    continue;
+                    Ok(None) => {
+                        if matches!(mode, Mode::Batch) {
+                            tracing::info!(
+                                "Latest block reached, moving to polling mode"
+                            );
+                            mode = Mode::Poll;
+                        } else {
+                            self.next_da_height = next_to_emit;
+                            if self.pending.is_empty() {
+                                tracing::trace!(
+                                    "Block is not yet available, trying again later."
+                                );
+                                tokio::time::sleep(std::time::Duration::from_secs(12))
+                                    .await;
+                            }
+                            continue;
+                        }
+                    }
+                    Err(GetBlockError::RateLimited) => {
+                        tracing::warn!("Hit rate limit, waiting 5s");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                    Err(GetBlockError::Other(err)) => {
+                        return Err(err.into());
+                    }
                 }
             }
 

@@ -179,7 +179,7 @@ impl Downloader {
             self.block_buffer.prune_below(self.next_fuel_block);
 
             while let Some(block) = self.block_buffer.pop_height(self.next_fuel_block) {
-                tracing::info!("Sending block {}", block.height());
+                tracing::debug!("Sending block {}", block.height());
                 tx.send(Ok(block)).await?;
                 self.next_fuel_block = self
                     .next_fuel_block

@@ -7,6 +7,8 @@ use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().init();
+
     let config = Config::parse();
     let mut downloader = Downloader::new(config).stream();
 
