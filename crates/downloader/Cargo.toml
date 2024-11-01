@@ -20,12 +20,11 @@ alloy = { version = "0.4.2", features = [
 ] }
 anyhow = { workspace = true }
 clap = { workspace = true }
-fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer", branch = "feat/blob_metadata" }
+fuel-block-committer-encoding = { git = "https://github.com/FuelLabs/fuel-block-committer" }
 fuel-core-compression = { workspace = true }
 fuel-core-types = { workspace = true }
 futures-util = "0.3"
 hex = "0.4.3"
-itertools = { workspace = true }
 postcard = { workspace = true }
 reqwest = "0.12"
 serde = { version = "1.0", features = ["derive"] }
@@ -33,3 +32,9 @@ sha2 = "0.10.8"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-stream = "0.1.16"
 tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.0"
+rand = "0.8"
+tokio = { workspace = true, features = ["test-util"] }
+tracing-subscriber = "0.3"
