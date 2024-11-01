@@ -73,3 +73,100 @@ pub enum Inserted {
     Complete(BundleV1),
     Incomplete,
 }
+
+#[cfg(test)]
+mod tests {
+    use fuel_block_committer_encoding::{
+        blob,
+        bundle::{
+            self,
+            Bundle,
+            BundleV1,
+        },
+    };
+    use proptest::prelude::*;
+    use rand::{
+        seq::SliceRandom,
+        SeedableRng,
+    };
+
+    use super::{
+        IncompleteBundleBuffers,
+        Inserted,
+    };
+
+    proptest! {
+        #[test]
+        fn single_bundle_any_order_works(
+            blocks in prop::collection::vec(prop::collection::vec(0..=u8::MAX, 1..12_346), 0..7),
+            id in 0..=u32::MAX,
+            shuffle_seed in 0..=u64::MAX,
+        ) {
+            let bundle = Bundle::V1(BundleV1 {
+                blocks: blocks.clone(),
+            });
+            let data = bundle::Encoder::default().encode(bundle).unwrap();
+            let mut encoded_parts = blob::Encoder::default().encode(&data, id).unwrap();
+
+            let mut rng = rand::rngs::StdRng::seed_from_u64(shuffle_seed);
+            encoded_parts.shuffle(&mut rng);
+
+            let mut buffers = IncompleteBundleBuffers::default();
+
+            let final_part = encoded_parts.pop().unwrap();
+            for part in encoded_parts {
+                let result = buffers.insert(part).unwrap();
+                assert!(matches!(result, Inserted::Incomplete));
+            }
+
+            let result = buffers.insert(final_part).unwrap();
+            let Inserted::Complete(bundle) = result else {
+                panic!("Expected a complete bundle");
+            };
+
+            assert_eq!(bundle.blocks, blocks);
+        }
+
+        #[test]
+        fn multiple_bundles_interspersed_works(
+            seed in 0..=u64::MAX,
+            mut bundle_blocks in prop::collection::vec((0..=u32::MAX, prop::collection::vec(prop::collection::vec(0..=u8::MAX, 1..1245), 0..6)), 0..7),
+        ) {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+            let mut parts_for_each_bundle = Vec::new();
+            for (id, blocks) in &bundle_blocks {
+                let bundle = Bundle::V1(BundleV1 {
+                    blocks: blocks.clone(),
+                });
+                let data = bundle::Encoder::default().encode(bundle).unwrap();
+                let mut encoded_parts = blob::Encoder::default().encode(&data, *id).unwrap();
+                encoded_parts.shuffle(&mut rng);
+                parts_for_each_bundle.push(encoded_parts);
+            }
+
+
+            let mut buffers = IncompleteBundleBuffers::default();
+            while !parts_for_each_bundle.is_empty() {
+                let i = rng.gen_range(0..parts_for_each_bundle.len());
+                let mut encoded_parts = parts_for_each_bundle.remove(i);
+
+                let part = encoded_parts.pop().unwrap();
+                let result = buffers.insert(part).unwrap();
+
+                if encoded_parts.is_empty() {
+                    // This was the last part
+                    let Inserted::Complete(bundle) = result else {
+                        panic!("Expected a complete bundle after the final part");
+                    };
+                    let i = bundle_blocks.iter().position(|(_, data)| *data == bundle.blocks).expect("Reconstructed bundle not found");
+                    bundle_blocks.swap_remove(i);
+                } else {
+                    // There's more to this bundle, re-insert the rest
+                    assert!(matches!(result, Inserted::Incomplete));
+                    parts_for_each_bundle.push(encoded_parts);
+                }
+            }
+        }
+    }
+}

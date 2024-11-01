@@ -32,3 +32,8 @@ sha2 = "0.10.8"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-stream = "0.1.16"
 tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.0"
+rand = "0.8"
+tokio = { workspace = true, features = ["test-util"] }
