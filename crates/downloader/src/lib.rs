@@ -28,7 +28,10 @@ use fuel_block_committer_encoding::{
         Bundle,
     },
 };
-use fuel_core_compression::VersionedCompressedBlock;
+use fuel_core_compression::{
+    VersionedBlockPayload,
+    VersionedCompressedBlock,
+};
 use fuel_core_types::fuel_types::BlockHeight;
 use futures_util::Stream;
 use itertools::Itertools;

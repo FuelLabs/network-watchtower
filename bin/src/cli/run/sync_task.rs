@@ -14,6 +14,7 @@ use fuel_core_services::{
     RunnableTask,
     ServiceRunner,
     StateWatcher,
+    TaskNextAction,
 };
 use fuel_network_watchtower_downloader::{
     Config as DownloaderConfig,
@@ -81,13 +82,10 @@ impl RunnableService for UninitializedTask {
 
 #[async_trait::async_trait]
 impl RunnableTask for Task {
-    async fn run(&mut self, watcher: &mut StateWatcher) -> anyhow::Result<bool> {
-        const STOP_SERVICE: bool = false;
-        const CONTINUE_SERVICE: bool = true;
-
+    async fn run(&mut self, watcher: &mut StateWatcher) -> TaskNextAction {
         tokio::select! {
             _ = watcher.while_started() => {
-                Ok(STOP_SERVICE)
+                TaskNextAction::Stop
             }
             compressed_block = self.stream_from_da.next() => {
                 if let Some(compressed_block) = compressed_block {
@@ -97,7 +95,7 @@ impl RunnableTask for Task {
                         }
                         Err(err) => {
                             tracing::error!("Error while downloading compressed block: {:?}", err);
-                            return Ok(STOP_SERVICE);
+                            return TaskNextAction::Stop;
                         }
                     };
 
@@ -105,12 +103,12 @@ impl RunnableTask for Task {
 
                     if let Err(err) = result {
                         tracing::error!("Error while importing compressed block: {:?}", err);
-                        Ok(STOP_SERVICE)
+                        TaskNextAction::Stop
                     } else {
-                        Ok(CONTINUE_SERVICE)
+                        TaskNextAction::Continue
                     }
                 } else {
-                    Ok(STOP_SERVICE)
+                    TaskNextAction::Stop
                 }
             }
         }
