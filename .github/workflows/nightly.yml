@@ -1,0 +1,114 @@
+name: Nightly build
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  linux:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: cross build
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
+
+          cross build -p bin --release --target ${{ matrix.target }}
+          mkdir release
+          cp target/${{ matrix.target }}/release/network-watchtower release/
+          tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-network-watchtower-archive
+          path: network-watchtower-${{ matrix.target }}.tar.gz
+          retention-days: 2
+
+  macos:
+    name: MacOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: cross build
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
+
+          cross build --release --target ${{ matrix.target }}
+          mkdir release
+          cp target/${{ matrix.target }}/release/network-watchtower release/
+          tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-network-watchtower-archive
+          path: network-watchtower-${{ matrix.target }}.tar.gz
+          retention-days: 2
+
+  prepare-prerelease:
+    name: Prepare pre-release
+    needs: [linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: main
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Delete tag
+        uses: dev-drprasad/delete-tag-and-release@v0.2.1
+        with:
+          delete_release: true
+          tag_name: nightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create prerelease
+        run: |
+          gh release create nightly --prerelease --target main \
+            --title 'Nightly build ("main" branch)' \
+            --generate-notes \
+            --draft=false \
+            *-archive/*.tar.gz \
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          failOnError: false
+          name: |
+            *-archive

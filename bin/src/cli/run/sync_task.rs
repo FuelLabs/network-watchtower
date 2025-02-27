@@ -80,7 +80,6 @@ impl RunnableService for UninitializedTask {
     }
 }
 
-#[async_trait::async_trait]
 impl RunnableTask for Task {
     async fn run(&mut self, watcher: &mut StateWatcher) -> TaskNextAction {
         tokio::select! {
