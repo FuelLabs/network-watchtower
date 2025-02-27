@@ -19,8 +19,6 @@ fuel-core-types = { workspace = true, features = ["test-helpers"] }
 futures = { workspace = true }
 itertools = { workspace = true }
 postcard = { workspace = true }
-tracing = { workspace = true }
-url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
