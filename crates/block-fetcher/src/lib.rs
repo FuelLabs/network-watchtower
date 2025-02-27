@@ -1,3 +1,5 @@
+#![deny(unused_crate_dependencies)]
+
 use fuel_core_client::client::{
     pagination::{
         PageDirection,

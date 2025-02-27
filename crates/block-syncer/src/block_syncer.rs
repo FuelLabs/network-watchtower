@@ -32,11 +32,18 @@ use fuel_core::{
         },
         FuelService,
     },
-    state::historical_rocksdb::StateRewindPolicy,
+    state::{
+        historical_rocksdb::StateRewindPolicy,
+        rocks_db::{
+            ColumnsPolicy,
+            DatabaseConfig,
+        },
+    },
 };
 use fuel_core_compression::{
     decompress::decompress,
     Config as CompressionConfig,
+    VersionedBlockPayload,
     VersionedCompressedBlock,
 };
 use fuel_core_poa::ports::BlockImporter;
@@ -94,8 +101,12 @@ impl BlockSyncer {
 
         let database = Database::open_rocksdb(
             db_path.as_path(),
-            None,
             StateRewindPolicy::RewindFullRange,
+            DatabaseConfig {
+                cache_capacity: None,
+                max_fds: -1,
+                columns_policy: ColumnsPolicy::OnCreation,
+            },
         )?;
         let on_chain_database = fuel_service.shared.database.on_chain().clone();
         let block_importer = fuel_service.shared.block_importer.clone();

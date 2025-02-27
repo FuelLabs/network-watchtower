@@ -3,7 +3,10 @@
 #![deny(unused_crate_dependencies)]
 #![deny(warnings)]
 
-use cynic::QueryBuilder;
+use cynic::{
+    Operation,
+    QueryBuilder,
+};
 use fuel_core_client::{
     client,
     client::{
@@ -13,13 +16,14 @@ use fuel_core_client::{
         },
         schema::{
             block::{
-                BlockByHeightArgs,
+                BlockByHeightArgsFields,
                 Consensus,
                 Header,
             },
             schema,
             tx::OpaqueTransactionWithStatus,
             ConnectionArgs,
+            ConnectionArgsFields,
             PageInfo,
         },
         types::{
@@ -116,7 +120,8 @@ impl ClientExt for FuelClient {
         &self,
         request: PaginationRequest<String>,
     ) -> std::io::Result<PaginatedResult<FullBlock, String>> {
-        let query = FullBlocksQuery::build(request.into());
+        let query: Operation<FullBlocksQuery, ConnectionArgs> =
+            FullBlocksQuery::build(request.into());
         let blocks = self.query(query).await?.blocks.into();
         Ok(blocks)
     }
@@ -153,10 +158,10 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
             .flat_map(|receipt| receipt.iter().filter_map(|r| r.message_id()))
             .collect_vec();
 
-        let transactions = transactions
+        let transactions: Vec<_> = transactions
             .into_iter()
-            .map(|tx| tx.transaction)
-            .collect_vec();
+            .map(|tx| tx.transaction.try_into())
+            .try_collect()?;
 
         let partial_header = PartialBlockHeader {
             application: ApplicationHeader {
@@ -181,8 +186,8 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
 
         let header = partial_header
             .generate(
-                &transactions,
-                &messages,
+                transactions.as_slice(),
+                messages.as_slice(),
                 full_block.header.event_inbox_root.into(),
             )
             .map_err(|e| anyhow::anyhow!(e))?;
