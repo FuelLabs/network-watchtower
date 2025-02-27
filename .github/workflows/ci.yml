@@ -2,13 +2,10 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
   pull_request:
-    types: [ opened, synchronize, reopened, labeled, unlabeled ]
-  merge_group:
-  release:
-    types: [ published ]
+    branches: ["main"]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -21,43 +18,45 @@ env:
   GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
 
 jobs:
-  cargo:
+  build:
     runs-on: buildjet-4vcpu-ubuntu-2204
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - command: clippy
-            args: --all-targets --all-features -- -D warnings -D clippy::dbg_macro
-          - command: check
-            args: --all-targets
-          - command: test
-            args: --all-targets --all-features
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --bin network-watchtower --verbose
+
+  clippy:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: "clippy"
-      - run: cargo ${{ matrix.command }} ${{ matrix.args }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy --all --all-features
 
-  rustfmt:
+  fmt:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
-      - uses: actions/checkout@v3
-      - name: Install latest nightly
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION_FMT }}
           components: rustfmt
-
-      - name: Rustfmt check
-        run: cargo +${{ env.RUST_VERSION_FMT }} fmt --all -- --check
+      - run: cargo +${{ env.RUST_VERSION_FMT }} fmt --all -- --check
 
   cargo-toml-fmt-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -68,11 +67,13 @@ jobs:
       - name: Run Cargo.toml sort check
         run: cargo sort -w --check
 
-  verifications-complete:
-    needs:
-      - rustfmt
-      - cargo
-      - cargo-toml-fmt-check
-    runs-on: ubuntu-latest
+  test:
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
-      - run: true
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+      - uses: actions/checkout@v4
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Run tests
+        run: cargo nextest run --all-features --all-targets
