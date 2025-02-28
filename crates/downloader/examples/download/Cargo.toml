@@ -1,0 +1,11 @@
+[package]
+name = "fuel-network-watchtower-download-example"
+version = "0.1.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+fuel-network-watchtower-downloader = { path = "../../downloader" }
+tracing-subscriber = "0.3"
+clap = "4.4"
+futures-util = "0.3"

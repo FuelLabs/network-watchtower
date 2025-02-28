@@ -41,29 +41,19 @@ impl BlockBuffer {
 #[cfg(test)]
 mod tests {
     use fuel_core_compression::{
-        CompressedBlockPayloadV0,
+        // CompressedBlockPayloadV0,
         VersionedCompressedBlock,
-    };
-    use fuel_core_types::{
-        blockchain::header::{
-            ConsensusHeader,
-            PartialBlockHeader,
-        },
-        fuel_types::BlockHeight,
     };
 
     fn mock_block(height: u32) -> VersionedCompressedBlock {
-        VersionedCompressedBlock::V0(CompressedBlockPayloadV0 {
-            registrations: Default::default(),
-            header: PartialBlockHeader {
-                application: Default::default(),
-                consensus: ConsensusHeader {
-                    height: BlockHeight::from(height),
-                    ..Default::default()
-                },
-            },
-            transactions: vec![],
-        })
+        let mut block = VersionedCompressedBlock::default();
+        // we probably should expose test helpers in the compression crate
+        match block {
+            VersionedCompressedBlock::V0(ref mut v0) => {
+                v0.header.consensus.height = height.into();
+            }
+        }
+        block
     }
 
     #[test]

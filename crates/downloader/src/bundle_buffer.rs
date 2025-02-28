@@ -47,6 +47,19 @@ impl HeaderExt for Header {
     }
 }
 
+/// Extensions for multiple variants of the `Bundle` enum.
+pub(crate) trait BundleExt {
+    fn blocks(&self) -> &[Vec<u8>];
+}
+
+impl BundleExt for Bundle {
+    fn blocks(&self) -> &[Vec<u8>] {
+        match self {
+            Bundle::V1(BundleV1 { blocks }) => blocks,
+        }
+    }
+}
+
 impl IncompleteBundleBuffers {
     /// Insert into the buffer of this bundle, keeping the blobs inside it sorted.
     /// Returns an error on duplicate insertion, or if the bundle cannot be decoded.
@@ -92,13 +105,12 @@ impl IncompleteBundleBuffers {
 
         let bundle_bytes = blob::Decoder::default().decode(&blobs)?;
         let bundle: Bundle = bundle::Decoder::default().decode(&bundle_bytes)?;
-        let Bundle::V1(bundle) = bundle;
         Ok(Inserted::Complete(bundle))
     }
 }
 
 pub enum Inserted {
-    Complete(BundleV1),
+    Complete(Bundle),
     Incomplete,
 }
 
@@ -119,6 +131,7 @@ mod tests {
     };
 
     use super::{
+        BundleExt,
         IncompleteBundleBuffers,
         Inserted,
     };
@@ -152,7 +165,7 @@ mod tests {
                 panic!("Expected a complete bundle");
             };
 
-            assert_eq!(bundle.blocks, blocks);
+            assert_eq!(bundle.blocks(), blocks);
         }
 
         #[test]
@@ -187,7 +200,7 @@ mod tests {
                     let Inserted::Complete(bundle) = result else {
                         panic!("Expected a complete bundle after the final part");
                     };
-                    let i = bundle_blocks.iter().position(|(_, data)| *data == bundle.blocks).expect("Reconstructed bundle not found");
+                    let i = bundle_blocks.iter().position(|(_, data)| *data == bundle.blocks()).expect("Reconstructed bundle not found");
                     bundle_blocks.swap_remove(i);
                 } else {
                     // There's more to this bundle, re-insert the rest

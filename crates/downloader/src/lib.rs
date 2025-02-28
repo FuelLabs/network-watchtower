@@ -39,6 +39,7 @@ mod bundle_buffer;
 mod config;
 mod download_queue;
 
+use bundle_buffer::BundleExt;
 pub use config::Config;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -173,7 +174,7 @@ impl Downloader {
                 continue;
             };
 
-            for block in bundle.blocks {
+            for block in bundle.blocks() {
                 let block: VersionedCompressedBlock =
                     postcard::from_bytes(&block).map_err(anyhow::Error::from)?;
                 self.block_buffer.push(block);

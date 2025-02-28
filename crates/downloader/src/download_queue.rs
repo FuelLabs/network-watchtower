@@ -192,15 +192,19 @@ mod tests {
     use super::{
         DownloadQueue,
         GetBlock,
+        GetBlockError,
     };
 
     #[derive(Clone, Default)]
     pub struct MockProvider {
         /// Holds pre-set response data
-        data: Arc<Mutex<HashMap<u64, Result<Block, anyhow::Error>>>>,
+        data: Arc<Mutex<HashMap<u64, Result<Block, GetBlockError>>>>,
     }
     impl GetBlock for MockProvider {
-        async fn get_block(&self, block_number: u64) -> anyhow::Result<Option<Block>> {
+        async fn get_block(
+            &self,
+            block_number: u64,
+        ) -> Result<Option<Block>, GetBlockError> {
             if let Some(block_result) = self.data.lock().await.remove(&block_number) {
                 block_result.map(Some)
             } else {
