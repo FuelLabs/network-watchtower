@@ -92,6 +92,7 @@ where
     ) -> anyhow::Result<()> {
         let mut next_to_emit = self.next_da_height;
         let mut mode = Mode::Batch;
+        const DA_BLOCK_TIME_MILLIS: u64 = 12_000;
 
         loop {
             // Queue new downloads up to the concurrency limit
@@ -120,8 +121,10 @@ where
                                 tracing::trace!(
                                     "Block is not yet available, trying again later."
                                 );
-                                tokio::time::sleep(std::time::Duration::from_secs(12))
-                                    .await;
+                                tokio::time::sleep(std::time::Duration::from_millis(
+                                    DA_BLOCK_TIME_MILLIS,
+                                ))
+                                .await;
                             }
                             continue;
                         }
