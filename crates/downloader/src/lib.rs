@@ -176,7 +176,7 @@ impl Downloader {
 
             for block in bundle.blocks() {
                 let block: VersionedCompressedBlock =
-                    postcard::from_bytes(&block).map_err(anyhow::Error::from)?;
+                    postcard::from_bytes(block).map_err(anyhow::Error::from)?;
                 self.block_buffer.push(block);
             }
 
