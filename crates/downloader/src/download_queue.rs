@@ -73,7 +73,10 @@ pub struct DownloadQueue<P> {
     completed: BTreeMap<u64, Block>,
 }
 
-impl<P: GetBlock + Clone + Send + 'static> DownloadQueue<P> {
+impl<P> DownloadQueue<P>
+where
+    P: GetBlock + Clone + Send + 'static,
+{
     pub fn start_from(provider: P, da_height: u64) -> Self {
         Self {
             provider,
