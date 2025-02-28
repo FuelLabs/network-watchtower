@@ -5,7 +5,6 @@ use fuel_block_committer_encoding::{
         self,
         Blob,
         Header,
-        HeaderV1,
     },
     bundle::{
         self,
@@ -18,39 +17,68 @@ use fuel_block_committer_encoding::{
 #[derive(Default)]
 pub struct IncompleteBundleBuffers {
     /// Mapping from bundle id to a sorted list of blobs
-    bundle_buffer_by_id: HashMap<u32, Vec<(HeaderV1, Blob)>>,
+    bundle_buffer_by_id: HashMap<u32, Vec<(Header, Blob)>>,
 }
+
+/// Extensions for multiple variants of the `Header` enum.
+trait HeaderExt {
+    fn bundle_id(&self) -> u32;
+    fn idx(&self) -> u32;
+    fn is_last(&self) -> bool;
+}
+
+impl HeaderExt for Header {
+    fn bundle_id(&self) -> u32 {
+        match self {
+            Header::V1(v1_header) => v1_header.bundle_id,
+        }
+    }
+
+    fn idx(&self) -> u32 {
+        match self {
+            Header::V1(v1_header) => v1_header.idx,
+        }
+    }
+
+    fn is_last(&self) -> bool {
+        match self {
+            Header::V1(v1_header) => v1_header.is_last,
+        }
+    }
+}
+
 impl IncompleteBundleBuffers {
     /// Insert into the buffer of this bundle, keeping the blobs inside it sorted.
     /// Returns an error on duplicate insertion, or if the bundle cannot be decoded.
     pub fn insert(&mut self, blob: Blob) -> anyhow::Result<Inserted> {
         let header = blob::Decoder::default().read_header(&blob)?;
-        let Header::V1(header) = header;
-        let bundle_id = header.bundle_id;
+
+        let bundle_id = header.bundle_id();
 
         let blobs = self.bundle_buffer_by_id.entry(bundle_id).or_default();
         if let Err(idx) =
-            blobs.binary_search_by_key(&header.idx, |(header, _)| header.idx)
+            blobs.binary_search_by_key(&header.idx(), |(header, _)| header.idx())
         {
             tracing::debug!(
                 "Inserted blob for bundle {}, at index {}, last {}",
-                header.bundle_id,
-                header.idx,
-                header.is_last,
+                bundle_id,
+                header.idx(),
+                header.is_last(),
             );
             blobs.insert(idx, (header, blob));
         } else {
-            anyhow::bail!("Duplicate blob with index {}", header.idx);
+            anyhow::bail!("Duplicate blob with index {}", header.idx());
         }
 
         // Check if the bundle is complete
         if let Some((last_header, _)) = blobs.last() {
-            if !last_header.is_last {
+            if !last_header.is_last() {
                 return Ok(Inserted::Incomplete);
             }
         }
+
         for (expected_idx, (header, _)) in blobs.iter().enumerate() {
-            if header.idx as usize != expected_idx {
+            if header.idx() as usize != expected_idx {
                 return Ok(Inserted::Incomplete);
             }
         }
