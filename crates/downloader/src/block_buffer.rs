@@ -40,10 +40,7 @@ impl BlockBuffer {
 
 #[cfg(test)]
 mod tests {
-    use fuel_core_compression::{
-        // CompressedBlockPayloadV0,
-        VersionedCompressedBlock,
-    };
+    use fuel_core_compression::VersionedCompressedBlock;
 
     fn mock_block(height: u32) -> VersionedCompressedBlock {
         let mut block = VersionedCompressedBlock::default();
