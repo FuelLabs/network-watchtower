@@ -31,7 +31,7 @@ jobs:
         run: |
           cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
 
-          cross build -p bin --release --target ${{ matrix.target }}
+          cross build --bin network-watchtower --release --target ${{ matrix.target }}
           mkdir release
           cp target/${{ matrix.target }}/release/network-watchtower release/
           tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
@@ -64,7 +64,7 @@ jobs:
         run: |
           cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
 
-          cross build --release --target ${{ matrix.target }}
+          cross build --bin network-watchtower --release --target ${{ matrix.target }}
           mkdir release
           cp target/${{ matrix.target }}/release/network-watchtower release/
           tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
