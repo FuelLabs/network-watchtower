@@ -4,6 +4,10 @@ on:
     - cron: "0 0 * * *"
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: 1.81.0
+
 jobs:
   linux:
     strategy:
@@ -16,20 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: ${{ matrix.target }}
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: "${{ matrix.target }}, wasm32-unknown-unknown"
       - uses: Swatinem/rust-cache@v2
       - name: cross build
         run: |
           cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
 
-          cross build -p bin --release --target ${{ matrix.target }}
+          cross build --bin network-watchtower --release --target ${{ matrix.target }}
           mkdir release
           cp target/${{ matrix.target }}/release/network-watchtower release/
           tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
@@ -37,7 +39,7 @@ jobs:
       - name: Upload archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-network-watchtower-archive
+          name: network-watchtower-archive-${{ matrix.target }}
           path: network-watchtower-${{ matrix.target }}.tar.gz
           retention-days: 2
 
@@ -51,20 +53,18 @@ jobs:
           - aarch64-apple-darwin
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: ${{ matrix.target }}
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: "${{ matrix.target }}, wasm32-unknown-unknown"
       - uses: Swatinem/rust-cache@v2
       - name: cross build
         run: |
           cargo install cross --git https://github.com/cross-rs/cross.git --rev 1511a28
 
-          cross build --release --target ${{ matrix.target }}
+          cross build --bin network-watchtower --release --target ${{ matrix.target }}
           mkdir release
           cp target/${{ matrix.target }}/release/network-watchtower release/
           tar -czvf network-watchtower-${{ matrix.target }}.tar.gz release/
@@ -72,7 +72,7 @@ jobs:
       - name: Upload archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-network-watchtower-archive
+          name: network-watchtower-archive-${{ matrix.target }}
           path: network-watchtower-${{ matrix.target }}.tar.gz
           retention-days: 2
 
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: main
       - name: Download artifacts
@@ -102,7 +102,7 @@ jobs:
             --title 'Nightly build ("main" branch)' \
             --generate-notes \
             --draft=false \
-            *-archive/*.tar.gz \
+            network-watchtower-archive-*/*.tar.gz \
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -111,4 +111,4 @@ jobs:
         with:
           failOnError: false
           name: |
-            *-archive
+            network-watchtower-archive-*
