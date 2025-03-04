@@ -1,9 +1,9 @@
-/target
-**/target/schema.sdl
-
-Cargo.lock
+debug/
+target/
 
 **/*.rs.bk
+**/target/schema.sdl
+
 .vscode/
 .idea
 .history
