@@ -102,7 +102,7 @@ jobs:
             --title 'Nightly build ("main" branch)' \
             --generate-notes \
             --draft=false \
-            *-archive/*.tar.gz \
+            network-watchtower-archive-*/*.tar.gz \
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
