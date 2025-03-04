@@ -13,7 +13,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_VERSION: 1.79.0
+  RUST_VERSION: 1.81.0
   RUST_VERSION_FMT: nightly-2024-02-07
   GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
 
@@ -73,7 +73,10 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - uses: actions/checkout@v4
-      - run: rustup target add wasm32-unknown-unknown
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: "wasm32-unknown-unknown"
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo nextest run --all-features --all-targets
