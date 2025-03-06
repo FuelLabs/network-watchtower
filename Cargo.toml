@@ -24,15 +24,15 @@ repository = "https://github.com/FuelLabs/network-watchtower"
 version = "0.0.1"
 
 [workspace.dependencies]
-fuel-core = { version = "0.41.4" }
-fuel-core-bin = { version = "0.41.4", default-features = false, features = ["rocksdb-production", "relayer"] }
-fuel-core-compression = { version = "0.41.4" }
-fuel-core-client = { version = "0.41.4" }
-fuel-core-relayer = { version = "0.41.4" }
-fuel-core-poa = { version = "0.41.4" }
-fuel-core-services = { version = "0.41.4" }
-fuel-core-storage = { version = "0.41.4" }
-fuel-core-types = { version = "0.41.4", features = ["da-compression"] }
+fuel-core = { version = "0.41.7" }
+fuel-core-bin = { version = "0.41.7", default-features = false, features = ["rocksdb-production", "relayer"] }
+fuel-core-compression = { version = "0.41.7" }
+fuel-core-client = { version = "0.41.7" }
+fuel-core-relayer = { version = "0.41.7" }
+fuel-core-poa = { version = "0.41.7" }
+fuel-core-services = { version = "0.41.7" }
+fuel-core-storage = { version = "0.41.7" }
+fuel-core-types = { version = "0.41.7", features = ["da-compression"] }
 
 fuel-block-syncer = { path = "crates/block-syncer" }
 fuel-block-fetcher = { path = "crates/block-fetcher" }
