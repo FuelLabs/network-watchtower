@@ -726,9 +726,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.96"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b964d184e89d9b6b67dd2715bc8e74cf3107fb2b529990c90cf517326150bf4"
+checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 
 [[package]]
 name = "arbitrary"
@@ -2673,7 +2673,7 @@ dependencies = [
  "fuel-core-compression",
  "fuel-core-types 0.41.7",
  "futures",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "postcard",
  "tokio",
 ]
@@ -2693,7 +2693,7 @@ dependencies = [
  "fuel-core-types 0.41.7",
  "futures",
  "humantime",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "tokio",
  "tracing",
  "url",
@@ -2847,7 +2847,7 @@ dependencies = [
  "cynic",
  "fuel-core-client",
  "fuel-core-types 0.41.7",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "tokio",
 ]
 
@@ -4333,6 +4333,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
