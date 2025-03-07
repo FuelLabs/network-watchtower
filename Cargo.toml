@@ -26,7 +26,7 @@ version = "0.0.1"
 [workspace.dependencies]
 fuel-core = { version = "0.41.4" }
 fuel-core-bin = { version = "0.41.4", default-features = false, features = ["rocksdb-production", "relayer"] }
-fuel-core-compression = { version = "0.41.4" }
+fuel-core-compression = { version = "0.41.8" }
 fuel-core-client = { version = "0.41.4" }
 fuel-core-relayer = { version = "0.41.4" }
 fuel-core-poa = { version = "0.41.4" }
