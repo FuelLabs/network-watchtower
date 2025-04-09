@@ -11,20 +11,10 @@ use anyhow::anyhow;
 use fuel_block_fetcher::BlockFetcher;
 use fuel_core::{
     database::{
-        database_description::{
-            on_chain::OnChain,
-            relayer::Relayer,
-        },
+        database_description::on_chain::OnChain,
         Database,
     },
-    fuel_core_graphql_api::{
-        da_compression::{
-            DbTx,
-            DecompressDbTx,
-        },
-        ports::DatabaseBlocks,
-        storage::da_compression::DaCompressedBlocks,
-    },
+    fuel_core_graphql_api::ports::DatabaseBlocks,
     service::{
         adapters::{
             BlockImporterAdapter,
@@ -45,6 +35,13 @@ use fuel_core_compression::{
     Config as CompressionConfig,
     VersionedBlockPayload,
     VersionedCompressedBlock,
+};
+use fuel_core_compression_service::{
+    storage::CompressedBlocks,
+    temporal_registry::{
+        CompressionStorageWrapper,
+        DecompressionContext,
+    },
 };
 use fuel_core_poa::ports::BlockImporter;
 use fuel_core_storage::{
@@ -85,7 +82,7 @@ pub struct BlockSyncer {
     block_fetcher: BlockFetcher,
     on_chain_database: Database<OnChain>,
     database: Database<Compression>,
-    relayer: fuel_core_relayer::SharedState<Database<Relayer>>,
+    relayer: fuel_core_relayer::SharedState,
     executor: ExecutorAdapter,
     block_importer: BlockImporterAdapter,
 }
@@ -147,7 +144,7 @@ impl BlockSyncer {
 
         let block = self.on_chain_database.latest_view()?.block(&block_height)?;
 
-        Ok(block.header().da_height)
+        Ok(block.header().da_height())
     }
 
     pub async fn sync_as_much_as_possible_from_graphql(&mut self) -> anyhow::Result<()> {
@@ -190,7 +187,7 @@ impl BlockSyncer {
         while let Some(block) = receiver.recv().await {
             let block = block.block;
             self.relayer
-                .await_at_least_synced(&block.entity.header().da_height)
+                .await_at_least_synced(&block.entity.header().da_height())
                 .await?;
             self.block_importer.execute_and_commit(block).await?;
         }
@@ -386,11 +383,11 @@ impl BlockSyncer {
         let mut compression_tx = tx.write_transaction();
 
         compression_tx
-            .storage_as_mut::<DaCompressedBlocks>()
+            .storage_as_mut::<CompressedBlocks>()
             .insert(block.height(), block)?;
 
-        let mut compression_db = DbTx {
-            db_tx: &mut compression_tx,
+        let mut compression_db = CompressionStorageWrapper {
+            storage_tx: &mut compression_tx,
         };
 
         let VersionedCompressedBlock::V0(block) = block;
@@ -410,9 +407,9 @@ impl BlockSyncer {
         let on_chain_database = self.on_chain_database.clone();
         let mut tx = self.database.write_transaction();
 
-        let decompression_db = DecompressDbTx {
-            db_tx: DbTx {
-                db_tx: &mut tx.write_transaction(),
+        let decompression_db = DecompressionContext {
+            compression_storage: CompressionStorageWrapper {
+                storage_tx: &mut tx.write_transaction(),
             },
             onchain_db: on_chain_database,
         };
