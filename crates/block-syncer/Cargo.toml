@@ -16,6 +16,7 @@ clap = { workspace = true }
 fuel-block-fetcher = { workspace = true }
 fuel-core = { workspace = true }
 fuel-core-compression = { workspace = true }
+fuel-core-compression-service = { workspace = true }
 fuel-core-poa = { workspace = true }
 fuel-core-relayer = { workspace = true }
 fuel-core-storage = { workspace = true }

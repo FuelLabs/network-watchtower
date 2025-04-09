@@ -1,17 +1,18 @@
-use fuel_core::{
-    database::{
-        commit_changes_with_height_update,
-        database_description::DatabaseDescription,
-        Database,
-    },
-    fuel_core_graphql_api,
-    fuel_core_graphql_api::storage::da_compression::DaCompressedBlocks,
+use fuel_core::database::{
+    commit_changes_with_height_update,
+    database_description::DatabaseDescription,
+    Database,
+};
+use fuel_core_compression_service::storage::{
+    column::CompressionColumn,
+    CompressedBlocks,
 };
 use fuel_core_storage::{
     iter::{
         IterDirection,
         IteratorOverTable,
     },
+    merkle::column::MerkleizedColumn,
     transactional::{
         Changes,
         StorageTransaction,
@@ -25,7 +26,7 @@ use itertools::Itertools;
 pub struct Compression;
 
 impl DatabaseDescription for Compression {
-    type Column = fuel_core_graphql_api::storage::Column;
+    type Column = MerkleizedColumn<CompressionColumn>;
     type Height = BlockHeight;
 
     fn version() -> u32 {
@@ -66,7 +67,7 @@ pub trait CompressionDatabaseExtension {
 impl CompressionDatabaseExtension for Database<Compression> {
     fn commit_compression(&mut self, changes: Changes) -> StorageResult<()> {
         commit_changes_with_height_update(self, changes, |iter| {
-            iter.iter_all::<DaCompressedBlocks>(Some(IterDirection::Reverse))
+            iter.iter_all::<CompressedBlocks>(Some(IterDirection::Reverse))
                 .map(|result| result.map(|(height, _)| height))
                 .try_collect()
         })

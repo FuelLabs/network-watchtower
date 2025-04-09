@@ -243,7 +243,7 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
 mod tests {
     use super::*;
     use fuel_core_client::client::pagination::PageDirection;
-
+    #[ignore] // testnet doesn't have latest fuel-core
     #[tokio::test]
     async fn testnet_works() {
         let client = FuelClient::new("https://testnet.fuel.network")
