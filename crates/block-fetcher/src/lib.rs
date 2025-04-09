@@ -92,6 +92,7 @@ impl BlockFetcher {
 mod tests {
     use super::*;
 
+    #[ignore] // testnet doesn't have latest fuel-core
     #[tokio::test]
     async fn testnet_works() {
         let syncer = BlockFetcher::new("https://testnet.fuel.network")
