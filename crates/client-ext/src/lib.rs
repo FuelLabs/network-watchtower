@@ -34,8 +34,8 @@ use fuel_core_client::{
     },
 };
 use fuel_core_types::{
-    blockchain,
     blockchain::{
+        self,
         block::Block,
         header::{
             ApplicationHeader,
@@ -50,6 +50,9 @@ use fuel_core_types::{
     },
 };
 use itertools::Itertools;
+
+#[cfg(feature = "fault-proving")]
+use fuel_core_types::fuel_types::ChainId;
 
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(
@@ -127,7 +130,7 @@ impl ClientExt for FuelClient {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SealedBlockWithMetadata {
     pub block: SealedBlock,
     pub receipts: Vec<Option<Vec<Receipt>>>,
@@ -184,11 +187,22 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
             },
         };
 
+        #[cfg(not(feature = "fault-proving"))]
         let header = partial_header
             .generate(
                 transactions.as_slice(),
                 messages.as_slice(),
                 full_block.header.event_inbox_root.into(),
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        #[cfg(feature = "fault-proving")]
+        let header = partial_header
+            .generate(
+                transactions.as_slice(),
+                messages.as_slice(),
+                full_block.header.event_inbox_root.into(),
+                &ChainId::default(), // TODO: How do we get the ChainId here?
             )
             .map_err(|e| anyhow::anyhow!(e))?;
 

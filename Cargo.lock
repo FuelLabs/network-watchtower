@@ -2694,7 +2694,7 @@ dependencies = [
  "fuel-core-compression",
  "fuel-core-types 0.42.0",
  "futures",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "postcard",
  "tokio",
 ]
@@ -2715,7 +2715,7 @@ dependencies = [
  "fuel-core-types 0.42.0",
  "futures",
  "humantime",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "tokio",
  "tracing",
  "url",
@@ -2758,6 +2758,7 @@ dependencies = [
  "fuel-core-relayer",
  "fuel-core-services",
  "fuel-core-storage",
+ "fuel-core-sync",
  "fuel-core-tx-status-manager",
  "fuel-core-txpool",
  "fuel-core-types 0.42.0",
@@ -2826,6 +2827,7 @@ dependencies = [
  "fuel-core-types 0.42.0",
  "itertools 0.12.1",
  "postcard",
+ "rand",
  "serde",
  "serde_json",
  "serde_with",
@@ -2865,7 +2867,7 @@ dependencies = [
  "cynic",
  "fuel-core-client",
  "fuel-core-types 0.42.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "tokio",
 ]
 
@@ -2891,6 +2893,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "enum-iterator",
+ "fuel-core-chain-config",
  "fuel-core-compression",
  "fuel-core-metrics",
  "fuel-core-services",
@@ -3114,6 +3117,22 @@ dependencies = [
  "serde",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "fuel-core-sync"
+version = "0.42.0"
+source = "git+https://github.com/fuellabs/fuel-core?branch=master#36dacc3fcd05ff9807bc2ee461058b59f1598051"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "fuel-core-services",
+ "fuel-core-types 0.42.0",
+ "futures",
+ "rand",
+ "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -4386,6 +4405,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]

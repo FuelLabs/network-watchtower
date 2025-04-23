@@ -256,12 +256,12 @@ impl BlockSyncer {
                     // had a compressed data, then break since the compression provider is
                     // malicious or has bad state.
                     if latest_compression_height.is_some() {
-                        break
+                        break;
                     } else {
                         tracing::info!("Skipping block without compression data");
                         // If we didn't have any compression state before,
                         // then skip this block until we find the first non-empty block.
-                        continue
+                        continue;
                     }
                 }
                 Some(block) => {
@@ -302,7 +302,7 @@ impl BlockSyncer {
                         "Skipping block {} from DA since it is already known",
                         compressed_block.height()
                     );
-                    return Ok(())
+                    return Ok(());
                 }
             }
         }
@@ -390,7 +390,13 @@ impl BlockSyncer {
             storage_tx: &mut compression_tx,
         };
 
+        #[cfg(not(feature = "fault-proving"))]
         let VersionedCompressedBlock::V0(block) = block;
+
+        #[cfg(feature = "fault-proving")]
+        let VersionedCompressedBlock::V0(block) = block else {
+            anyhow::bail!("unexpected compressed block version")
+        };
 
         block
             .registrations

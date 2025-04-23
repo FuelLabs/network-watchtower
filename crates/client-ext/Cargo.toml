@@ -23,3 +23,9 @@ tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 fuel-core-client = { workspace = true }
+
+[features]
+fault-proving = [
+    "fuel-core-client/fault-proving",
+    "fuel-core-types/fault-proving"
+]

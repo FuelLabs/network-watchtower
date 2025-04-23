@@ -27,3 +27,8 @@ itertools = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+
+[features]
+fault-proving = [
+    "fuel-core/fault-proving",
+]
