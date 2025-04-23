@@ -6,7 +6,7 @@ members = [
     "crates/client-ext",
     "crates/downloader",
 ]
-resolver = "1"
+resolver = "2"
 
 [profile.release]
 codegen-units = 1
@@ -30,6 +30,7 @@ fuel-core-compression = { git = "https://github.com/fuellabs/fuel-core", branch 
 fuel-core-compression-service = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
 fuel-core-client = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
 fuel-core-relayer = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
+fuel-core-upgradable-executor = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
 fuel-core-poa = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
 fuel-core-services = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
 fuel-core-storage = { git = "https://github.com/fuellabs/fuel-core", branch = "master" }
