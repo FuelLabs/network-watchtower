@@ -49,7 +49,7 @@ mod tests {
             VersionedCompressedBlock::V0(ref mut v0) => {
                 v0.header.consensus.height = height.into();
             }
-            _ => panic!("unexpected block version")
+            _ => panic!("unexpected block version"),
         }
         block
     }

@@ -4,7 +4,8 @@ use fuel_core_client::client::{
     pagination::{
         PageDirection,
         PaginationRequest,
-    }, FuelClient
+    },
+    FuelClient,
 };
 use fuel_core_client_ext::{
     ClientExt,
@@ -40,7 +41,12 @@ impl BlockFetcher {
         range: Range<u32>,
     ) -> anyhow::Result<Vec<SealedBlockWithMetadata>> {
         // TODO: Add caching?
-        let chain_id = self.client.chain_info().await?.consensus_parameters.chain_id();
+        let chain_id = self
+            .client
+            .chain_info()
+            .await?
+            .consensus_parameters
+            .chain_id();
 
         if range.is_empty() {
             return Ok(vec![]);
@@ -58,7 +64,11 @@ impl BlockFetcher {
         let blocks = response
             .results
             .into_iter()
-            .map(|full_block| SealedBlockWithMetadata::try_from_full_block_and_chain_id(chain_id, full_block))
+            .map(|full_block| {
+                SealedBlockWithMetadata::try_from_full_block_and_chain_id(
+                    chain_id, full_block,
+                )
+            })
             .try_collect()?;
         Ok(blocks)
     }
@@ -139,11 +149,12 @@ mod tests {
                 panic!("Block at height {} is missing", i);
             };
 
-            #[cfg(not(feature="fault-proving"))]
+            #[cfg(not(feature = "fault-proving"))]
             let VersionedCompressedBlock::V0(block) = block;
 
-            #[cfg(feature="fault-proving")]
-            let VersionedCompressedBlock::V0(block) = block else {
+            #[cfg(feature = "fault-proving")]
+            let VersionedCompressedBlock::V0(block) = block
+            else {
                 panic!("unexpected block version");
             };
 

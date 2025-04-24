@@ -136,7 +136,10 @@ pub struct SealedBlockWithMetadata {
 }
 
 impl SealedBlockWithMetadata {
-    pub fn try_from_full_block_and_chain_id(chain_id: ChainId, full_block: FullBlock) -> anyhow::Result<Self> {
+    pub fn try_from_full_block_and_chain_id(
+        chain_id: ChainId,
+        full_block: FullBlock,
+    ) -> anyhow::Result<Self> {
         #[cfg(not(feature = "fault-proving"))]
         let _ = chain_id; // unused without fault proving
 
@@ -250,7 +253,7 @@ impl SealedBlockWithMetadata {
         };
 
         Ok(sealed)
-    }    
+    }
 }
 
 #[cfg(test)]
@@ -278,7 +281,11 @@ mod tests {
             .into_iter()
             .next()
             .expect("Should have a block");
-        let result: anyhow::Result<SealedBlockWithMetadata> = SealedBlockWithMetadata::try_from_full_block_and_chain_id(ChainId::default(), full_block);
+        let result: anyhow::Result<SealedBlockWithMetadata> =
+            SealedBlockWithMetadata::try_from_full_block_and_chain_id(
+                ChainId::default(),
+                full_block,
+            );
         assert!(result.is_ok(), "{result:?}");
     }
 }

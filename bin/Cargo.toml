@@ -25,7 +25,6 @@ fuel-core = { workspace = true }
 fuel-core-bin = { workspace = true }
 fuel-core-compression = { workspace = true }
 fuel-core-services = { workspace = true }
-fuel-core-upgradable-executor = { workspace = true }
 fuel-network-watchtower-downloader = { workspace = true }
 futures-util = { workspace = true }
 tikv-jemallocator = { workspace = true }
@@ -39,6 +38,5 @@ fault-proving = [
     "fuel-block-syncer/fault-proving",
     "fuel-core/fault-proving",
     "fuel-core-bin/fault-proving",
-    "fuel-core-upgradable-executor/fault-proving",
     "fuel-core-compression/fault-proving",
 ]

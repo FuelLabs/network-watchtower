@@ -3016,7 +3016,6 @@ dependencies = [
  "fuel-core-bin",
  "fuel-core-compression",
  "fuel-core-services",
- "fuel-core-upgradable-executor",
  "fuel-network-watchtower-downloader",
  "futures-util",
  "tikv-jemallocator",

@@ -394,7 +394,8 @@ impl BlockSyncer {
         let VersionedCompressedBlock::V0(block) = block;
 
         #[cfg(feature = "fault-proving")]
-        let VersionedCompressedBlock::V0(block) = block else {
+        let VersionedCompressedBlock::V0(block) = block
+        else {
             anyhow::bail!("unexpected compressed block version")
         };
 
