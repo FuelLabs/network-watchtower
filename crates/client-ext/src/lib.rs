@@ -51,7 +51,6 @@ use fuel_core_types::{
 };
 use itertools::Itertools;
 
-#[cfg(feature = "fault-proving")]
 use fuel_core_types::fuel_types::ChainId;
 
 #[derive(cynic::QueryFragment, Debug)]
@@ -136,10 +135,11 @@ pub struct SealedBlockWithMetadata {
     pub receipts: Vec<Option<Vec<Receipt>>>,
 }
 
-impl TryFrom<FullBlock> for SealedBlockWithMetadata {
-    type Error = anyhow::Error;
+impl SealedBlockWithMetadata {
+    pub fn try_from_full_block_and_chain_id(chain_id: ChainId, full_block: FullBlock) -> anyhow::Result<Self> {
+        #[cfg(not(feature = "fault-proving"))]
+        let _ = chain_id; // unused without fault proving
 
-    fn try_from(full_block: FullBlock) -> Result<Self, Self::Error> {
         let transactions: Vec<TransactionResponse> = full_block
             .transactions
             .into_iter()
@@ -202,7 +202,7 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
                 transactions.as_slice(),
                 messages.as_slice(),
                 full_block.header.event_inbox_root.into(),
-                &ChainId::default(), // TODO: How do we get the ChainId here?
+                &chain_id,
             )
             .map_err(|e| anyhow::anyhow!(e))?;
 
@@ -250,7 +250,7 @@ impl TryFrom<FullBlock> for SealedBlockWithMetadata {
         };
 
         Ok(sealed)
-    }
+    }    
 }
 
 #[cfg(test)]
@@ -278,7 +278,7 @@ mod tests {
             .into_iter()
             .next()
             .expect("Should have a block");
-        let result: anyhow::Result<SealedBlockWithMetadata> = full_block.try_into();
+        let result: anyhow::Result<SealedBlockWithMetadata> = SealedBlockWithMetadata::try_from_full_block_and_chain_id(ChainId::default(), full_block);
         assert!(result.is_ok(), "{result:?}");
     }
 }

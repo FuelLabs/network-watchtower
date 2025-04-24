@@ -4,8 +4,7 @@ use fuel_core_client::client::{
     pagination::{
         PageDirection,
         PaginationRequest,
-    },
-    FuelClient,
+    }, FuelClient
 };
 use fuel_core_client_ext::{
     ClientExt,
@@ -40,6 +39,9 @@ impl BlockFetcher {
         &self,
         range: Range<u32>,
     ) -> anyhow::Result<Vec<SealedBlockWithMetadata>> {
+        // TODO: Add caching?
+        let chain_id = self.client.chain_info().await?.consensus_parameters.chain_id();
+
         if range.is_empty() {
             return Ok(vec![]);
         }
@@ -56,7 +58,7 @@ impl BlockFetcher {
         let blocks = response
             .results
             .into_iter()
-            .map(TryInto::try_into)
+            .map(|full_block| SealedBlockWithMetadata::try_from_full_block_and_chain_id(chain_id, full_block))
             .try_collect()?;
         Ok(blocks)
     }
