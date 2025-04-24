@@ -137,7 +137,13 @@ mod tests {
                 panic!("Block at height {} is missing", i);
             };
 
+            #[cfg(not(feature="fault-proving"))]
             let VersionedCompressedBlock::V0(block) = block;
+
+            #[cfg(feature="fault-proving")]
+            let VersionedCompressedBlock::V0(block) = block else {
+                panic!("unexpected block version");
+            };
 
             assert_eq!(*block.header.height(), i.into());
         }
