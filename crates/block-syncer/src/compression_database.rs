@@ -52,7 +52,7 @@ pub trait StorageTransactionExtension {
     fn commit_compression(self) -> StorageResult<()>;
 }
 
-impl<'a> StorageTransactionExtension for CompressionTransaction<'a> {
+impl StorageTransactionExtension for CompressionTransaction<'_> {
     fn commit_compression(self) -> StorageResult<()> {
         let (db, changes) = self.into_inner();
 
