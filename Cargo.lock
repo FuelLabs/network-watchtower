@@ -3366,7 +3366,7 @@ dependencies = [
  "hex",
  "postcard",
  "proptest",
- "rand 0.8.5",
+ "rand 0.9.1",
  "reqwest 0.12.15",
  "serde",
  "sha2",
