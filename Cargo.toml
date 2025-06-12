@@ -8,11 +8,6 @@ members = [
 ]
 resolver = "2"
 
-[profile.release]
-codegen-units = 1
-lto = "fat"
-panic = "unwind"
-
 [workspace.package]
 authors = ["Fuel Labs <contact@fuel.sh>"]
 categories = ["concurrency", "cryptography::cryptocurrencies", "emulators"]
@@ -24,32 +19,37 @@ repository = "https://github.com/FuelLabs/network-watchtower"
 version = "0.0.1"
 
 [workspace.dependencies]
+anyhow = "1.0"
+
+async-trait = "0.1"
+clap = { version = "4.4", features = ["derive", "env"] }
+fuel-block-fetcher = { path = "crates/block-fetcher" }
+
+fuel-block-syncer = { path = "crates/block-syncer" }
 fuel-core = { version = "0.44.0" }
 fuel-core-bin = { version = "0.44.0", default-features = false, features = ["rocksdb-production", "relayer"] }
+fuel-core-client = { version = "0.44.0" }
+fuel-core-client-ext = { path = "crates/client-ext" }
 fuel-core-compression = { version = "0.44.0" }
 fuel-core-compression-service = { version = "0.44.0" }
-fuel-core-client = { version = "0.44.0" }
-fuel-core-relayer = { version = "0.44.0" }
 fuel-core-poa = { version = "0.44.0" }
+fuel-core-relayer = { version = "0.44.0" }
 fuel-core-services = { version = "0.44.0" }
 fuel-core-storage = { version = "0.44.0" }
 fuel-core-types = { version = "0.44.0", features = ["da-compression"] }
-
-fuel-block-syncer = { path = "crates/block-syncer" }
-fuel-block-fetcher = { path = "crates/block-fetcher" }
-fuel-core-client-ext = { path = "crates/client-ext" }
 fuel-network-watchtower-downloader = { path = "crates/downloader" }
-
-async-trait = "0.1"
-anyhow = "1.0"
-clap = { version = "4.4", features = ["derive", "env"] }
-hex = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 futures-util = "0.3"
-tracing = "0.1"
-tracing-attributes = "0.1"
-tokio = { version = "1.40", default-features = false }
-tikv-jemallocator = "0.5"
+hex = { version = "0.4", features = ["serde"] }
 itertools = "0.14"
 postcard = "1"
+tikv-jemallocator = "0.5"
+tokio = { version = "1.40", default-features = false }
+tracing = "0.1"
+tracing-attributes = "0.1"
 url = { version = "2.2" }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+panic = "unwind"

@@ -10,6 +10,9 @@ repository = { workspace = true }
 version = { workspace = true }
 build = "build.rs"
 
+[features]
+fault-proving = ["fuel-core-client/fault-proving", "fuel-core-types/fault-proving"]
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = "0.1"
@@ -18,14 +21,8 @@ fuel-core-client = { workspace = true }
 fuel-core-types = { workspace = true }
 itertools = { workspace = true }
 
-[dev-dependencies]
-tokio = { workspace = true, features = ["full"] }
-
 [build-dependencies]
 fuel-core-client = { workspace = true }
 
-[features]
-fault-proving = [
-    "fuel-core-client/fault-proving",
-    "fuel-core-types/fault-proving"
-]
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

@@ -15,6 +15,15 @@ publish = true
 name = "network-watchtower"
 path = "src/main.rs"
 
+[features]
+default = []
+fault-proving = [
+    "fuel-block-syncer/fault-proving",
+    "fuel-core/fault-proving",
+    "fuel-core-bin/fault-proving",
+    "fuel-core-compression/fault-proving",
+]
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -31,12 +40,3 @@ tikv-jemallocator = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
 url = { workspace = true }
-
-[features]
-default = []
-fault-proving = [
-    "fuel-block-syncer/fault-proving",
-    "fuel-core/fault-proving",
-    "fuel-core-bin/fault-proving",
-    "fuel-core-compression/fault-proving",
-]

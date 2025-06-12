@@ -10,6 +10,13 @@ repository = { workspace = true }
 version = { workspace = true }
 description = "Fetcher of the block from the Fuel network via GraphQL"
 
+[features]
+fault-proving = [
+    "fuel-core-compression/fault-proving",
+    "fuel-core-client-ext/fault-proving",
+    "fuel-core-types/fault-proving",
+]
+
 [dependencies]
 anyhow = { workspace = true }
 fuel-core-client = { workspace = true }
@@ -22,10 +29,3 @@ postcard = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-
-[features]
-fault-proving = [
-    "fuel-core-compression/fault-proving",
-    "fuel-core-client-ext/fault-proving",
-    "fuel-core-types/fault-proving",
-]
