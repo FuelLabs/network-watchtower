@@ -44,7 +44,7 @@ hex = { version = "0.4", features = ["serde"] }
 itertools = "0.14"
 postcard = "1"
 tikv-jemallocator = "0.5"
-tokio = { version = "1.40", default-features = false }
+tokio = { version = "1.47", default-features = false }
 tracing = "0.1"
 tracing-attributes = "0.1"
 url = { version = "2.2" }
