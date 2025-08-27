@@ -22,7 +22,7 @@ version = "0.0.1"
 anyhow = "1.0"
 
 async-trait = "0.1"
-clap = { version = "4.4", features = ["derive", "env"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 fuel-block-fetcher = { path = "crates/block-fetcher" }
 
 fuel-block-syncer = { path = "crates/block-syncer" }
