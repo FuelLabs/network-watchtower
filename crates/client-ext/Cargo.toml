@@ -16,7 +16,7 @@ fault-proving = ["fuel-core-client/fault-proving", "fuel-core-types/fault-provin
 [dependencies]
 anyhow = { workspace = true }
 async-trait = "0.1"
-cynic = { version = "3.1", features = ["http-reqwest"] }
+cynic = { version = "3.12", features = ["http-reqwest"] }
 fuel-core-client = { workspace = true }
 fuel-core-types = { workspace = true }
 itertools = { workspace = true }
