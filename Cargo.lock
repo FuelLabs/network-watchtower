@@ -2678,7 +2678,7 @@ dependencies = [
 [[package]]
 name = "fuel-block-committer-encoding"
 version = "0.10.10"
-source = "git+https://github.com/FuelLabs/fuel-block-committer#9f8bbb442dd6a9558a8d8c3ec99724d215d1478a"
+source = "git+https://github.com/FuelLabs/fuel-block-committer#44e35c25123899dcbcb6cd3a8582db4c675029da"
 dependencies = [
  "anyhow",
  "bitvec",
