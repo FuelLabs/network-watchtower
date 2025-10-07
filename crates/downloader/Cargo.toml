@@ -34,6 +34,6 @@ tokio-stream = "0.1.16"
 tracing = { workspace = true }
 
 [dev-dependencies]
-proptest = "1.0"
+proptest = "1.8"
 rand = "0.8"
 tokio = { workspace = true, features = ["test-util"] }
