@@ -3,7 +3,7 @@
 # The script runs almost all CI checks locally.
 #
 # Requires installed:
-# - Rust `1.81.0`
+# - Rust `1.94.1`
 # - Nightly rust formatter
 # - `cargo install cargo-sort`
 

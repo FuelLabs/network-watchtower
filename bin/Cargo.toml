@@ -22,6 +22,16 @@ fault-proving = [
     "fuel-core/fault-proving",
     "fuel-core-bin/fault-proving",
     "fuel-core-compression/fault-proving",
+    # Works around an upstream feature-propagation bug in fuel-core 0.48.x.
+    # `fuel-core-bin` depends on `fuel-core-block-aggregator-api` unconditionally, but
+    # only `fuel-core`'s `fault-proving` forwards to it, and it does so with a `?`
+    # ("fuel-core-block-aggregator-api?/fault-proving") that fires only when *fuel-core*
+    # enables that optional dependency - i.e. only under `fuel-core/rpc`. Without `rpc`,
+    # `fuel-core-types` gets `fault-proving` (5-argument `Block::new`, `BlockHeader::V2`)
+    # while the aggregator is compiled without it, and the aggregator fails to build.
+    # Enabling `rpc` here restores the forwarding. Drop this once upstream lists the
+    # aggregator in `fuel-core-bin`'s own `fault-proving` feature.
+    "fuel-core-bin/rpc",
 ]
 
 [dependencies]

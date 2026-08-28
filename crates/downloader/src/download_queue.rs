@@ -12,7 +12,6 @@ use alloy::{
     },
     rpc::types::Block,
     transports::{
-        http::Http,
         RpcError,
         TransportErrorKind,
     },
@@ -37,9 +36,13 @@ pub trait GetBlock {
     ) -> impl Future<Output = Result<Option<Block>, GetBlockError>> + Send;
 }
 
-impl GetBlock for RootProvider<Http<reqwest::Client>> {
+impl GetBlock for RootProvider {
     async fn get_block(&self, block_number: u64) -> Result<Option<Block>, GetBlockError> {
-        self.get_block_by_number(BlockNumberOrTag::Number(block_number), true)
+        // alloy 1.x replaced the `full: bool` argument with a builder; without
+        // `.full()` the node returns transaction hashes only and the blob scan
+        // in `get_block_tx_blobs` would silently see no transactions.
+        self.get_block_by_number(BlockNumberOrTag::Number(block_number))
+            .full()
             .await
             .map_err(|err| match err {
                 RpcError::ErrorResp(resp) if resp.code == 429 => {
@@ -177,6 +180,7 @@ mod tests {
     };
 
     use alloy::{
+        consensus::Header as ConsensusHeader,
         primitives::map::HashMap,
         rpc::types::{
             Block,
@@ -222,12 +226,16 @@ mod tests {
     fn mock_block(number: u64) -> Block {
         Block {
             header: Header {
-                number,
+                // alloy 1.x moved the consensus fields behind `Header::inner` and
+                // dropped `Block::size`.
+                inner: ConsensusHeader {
+                    number,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             uncles: Default::default(),
             transactions: Default::default(),
-            size: Default::default(),
             withdrawals: Default::default(),
         }
     }

@@ -5,8 +5,13 @@
 use std::pin::Pin;
 
 use alloy::{
+    consensus::{
+        Transaction as _,
+        Typed2718 as _,
+    },
+    network::TransactionResponse as _,
     primitives::Address,
-    providers::ProviderBuilder,
+    providers::RootProvider,
     rpc::types::Block,
 };
 use block_buffer::BlockBuffer;
@@ -60,8 +65,10 @@ fn get_block_tx_blobs(
 ) -> Vec<Vec<u8>> {
     let mut hashes = Vec::new();
     for tx in block.transactions.txns() {
-        if tx.from == *target_contract && tx.transaction_type == Some(3) {
-            if let Some(bvh) = tx.blob_versioned_hashes.as_ref() {
+        // In alloy 1.x the sender, the EIP-2718 type and the blob hashes are trait
+        // methods on the recovered envelope rather than fields on the RPC struct.
+        if tx.from() == *target_contract && tx.ty() == 3 {
+            if let Some(bvh) = tx.blob_versioned_hashes() {
                 hashes.extend(bvh.iter().map(|h| h.to_vec()));
             }
         }
@@ -123,7 +130,7 @@ pub struct Downloader {
 impl Downloader {
     pub fn new(config: Config) -> Self {
         let rpc_url = config.ethereum_rpc_url;
-        let provider = ProviderBuilder::new().on_http(rpc_url);
+        let provider = RootProvider::new_http(rpc_url);
         let http = reqwest::Client::new();
         let target_contract = Address::from(*config.blob_contract);
         Self {

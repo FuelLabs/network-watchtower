@@ -26,17 +26,23 @@ clap = { version = "4.5", features = ["derive", "env"] }
 fuel-block-fetcher = { path = "crates/block-fetcher" }
 
 fuel-block-syncer = { path = "crates/block-syncer" }
-fuel-core = { version = "0.44.0" }
-fuel-core-bin = { version = "0.44.0", default-features = false, features = ["rocksdb-production", "relayer"] }
-fuel-core-client = { version = "0.44.0" }
+# The whole `fuel-core` family must move in lockstep: `fuel-core-bin` builds a
+# `fuel_core::service::Config` with an exhaustive struct literal, so a `fuel-core` newer
+# than the `fuel-core-bin` beside it does not compile. 0.48.3 is the newest release of
+# `fuel-core` itself, but `fuel-core-bin` 0.48.3 was never published to crates.io, so
+# 0.48.2 is the newest version of the family that exists as a complete, consistent set.
+# The `=` requirements keep `cargo update` from splitting the family.
+fuel-core = { version = "=0.48.2" }
+fuel-core-bin = { version = "=0.48.2", default-features = false, features = ["rocksdb-production", "relayer"] }
+fuel-core-client = { version = "=0.48.2" }
 fuel-core-client-ext = { path = "crates/client-ext" }
-fuel-core-compression = { version = "0.44.0" }
-fuel-core-compression-service = { version = "0.44.0" }
-fuel-core-poa = { version = "0.44.0" }
-fuel-core-relayer = { version = "0.44.0" }
-fuel-core-services = { version = "0.44.0" }
-fuel-core-storage = { version = "0.44.0" }
-fuel-core-types = { version = "0.44.0", features = ["da-compression"] }
+fuel-core-compression = { version = "=0.48.2" }
+fuel-core-compression-service = { version = "=0.48.2" }
+fuel-core-poa = { version = "=0.48.2" }
+fuel-core-relayer = { version = "=0.48.2" }
+fuel-core-services = { version = "=0.48.2" }
+fuel-core-storage = { version = "=0.48.2" }
+fuel-core-types = { version = "=0.48.2", features = ["da-compression"] }
 fuel-network-watchtower-downloader = { path = "crates/downloader" }
 futures = "0.3"
 futures-util = "0.3"
