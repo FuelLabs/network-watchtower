@@ -10,7 +10,10 @@ repository = { workspace = true }
 version = { workspace = true }
 
 [dependencies]
-alloy = { version = "0.4.2", features = [
+# Must stay on the same major as the `alloy` that `fuel-core-relayer` pulls in:
+# `c-kzg` is a `links = "ckzg"` crate, so two incompatible `alloy-consensus`
+# versions in one graph is a hard resolver error, not just a duplicate build.
+alloy = { version = "1.7", features = [
     "full",
     "rpc-types-debug",
     "rpc-types-trace",

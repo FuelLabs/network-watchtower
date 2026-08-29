@@ -377,7 +377,7 @@ impl BlockSyncer {
     async fn apply_compression(
         &mut self,
         block: &VersionedCompressedBlock,
-    ) -> anyhow::Result<CompressionTransaction> {
+    ) -> anyhow::Result<CompressionTransaction<'_>> {
         let mut tx = self.database.write_transaction();
 
         let mut compression_tx = tx.write_transaction();
