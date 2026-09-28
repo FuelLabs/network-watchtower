@@ -1,10 +1,7 @@
 use crate::cli::run::sync_service::SyncService;
 use clap::Parser;
 use fuel_block_syncer::config::Config as BlockSyncerConfig;
-use fuel_core::{
-    service::genesis::NotifyCancel,
-    types::fuel_types::BlockHeight,
-};
+use fuel_core::service::genesis::NotifyCancel;
 use fuel_network_watchtower_downloader::Config as DownloaderConfig;
 
 mod sync_service;
@@ -45,14 +42,11 @@ pub async fn exec(command: WatchtowerCommand) -> anyhow::Result<()> {
         fuel_core_bin::cli::run::get_service_with_shutdown_listeners(command.fuel_core)
             .await?;
 
-    let downloader_config = DownloaderConfig {
-        ethereum_rpc_url: eth_rpcs[0].clone(),
-        beacon_rpc_url: command.beacon_rpc_url,
-        blob_contract: command.blob_contract,
-        // We will set these later in the syncer.
-        da_start_block: 0,
-        next_fuel_block: BlockHeight::new(0),
-    };
+    let downloader_config = DownloaderConfig::new(
+        eth_rpcs[0].clone(),
+        command.beacon_rpc_url,
+        command.blob_contract,
+    );
 
     let syncer = SyncService::new(service, command.block_sync_config, downloader_config)?;
 

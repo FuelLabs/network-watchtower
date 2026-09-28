@@ -70,15 +70,16 @@ impl RunnableService for UninitializedTask {
         }
 
         let mut config = self.downloader_config;
-        config.da_start_block = self.block_syncer.compression_latest_da_height()?.into();
-        config.next_fuel_block = self
+        config
+            .set_da_start_block(self.block_syncer.compression_latest_da_height()?.into());
+        config.set_next_fuel_block(self
             .block_syncer
             .compression_latest_height()
             .expect(
                 "If we have the latest da height, we have the latest fuel height as well",
             )
             .succ()
-            .expect("Out of Fuel block heights");
+            .expect("Out of Fuel block heights"));
         let downloader_stream = Downloader::new(config).stream().into_boxed();
 
         Ok(Task {

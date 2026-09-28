@@ -26,3 +26,27 @@ pub struct Config {
     #[clap(long, env = "NEXT_FUEL_BLOCK")]
     pub next_fuel_block: BlockHeight,
 }
+
+impl Config {
+    pub fn new(
+        ethereum_rpc_url: Url,
+        beacon_rpc_url: Url,
+        blob_contract: fuel_core_types::fuel_types::Bytes20,
+    ) -> Self {
+        Self {
+            ethereum_rpc_url,
+            beacon_rpc_url,
+            blob_contract,
+            da_start_block: 0,
+            next_fuel_block: BlockHeight::default(),
+        }
+    }
+
+    pub fn set_da_start_block(&mut self, da_start_block: u64) {
+        self.da_start_block = da_start_block;
+    }
+
+    pub fn set_next_fuel_block(&mut self, next_fuel_block: BlockHeight) {
+        self.next_fuel_block = next_fuel_block;
+    }
+}
